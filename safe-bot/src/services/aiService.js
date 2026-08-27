@@ -20,11 +20,11 @@ async function generateTextResponse(conversationHistory) {
             history: [
                 {
                     role: 'user',
-                    parts: [{ text: 'Mulai sesi konsultasi. Ini adalah system instruction-mu:\n\n' + SYSTEM_PROMPT }]
+                    parts: [{ text: 'Start the consultation session. This is your system instruction:\n\n' + SYSTEM_PROMPT }]
                 },
                 {
                     role: 'model',
-                    parts: [{ text: 'Baik, saya S.I.N.A.R. AI siap membantu konsultasi kesehatan hidung dan sinus. Saya akan mengikuti semua instruksi yang diberikan.' }]
+                    parts: [{ text: 'Understood, I am S.I.N.A.R. AI, ready to assist with nose and sinus health consultations. I will follow all instructions provided and respond in English.' }]
                 },
                 ...conversationHistory
             ]
@@ -62,10 +62,10 @@ async function generateImageResponse(base64Image, mimeType, conversationHistory)
                 .filter(msg => msg.role === 'user')
                 .map(msg => msg.parts[0].text)
                 .join('\n');
-            contextSummary = `\n\nKonteks percakapan sebelumnya (gejala yang sudah dilaporkan pengguna):\n${userMessages}`;
+            contextSummary = `\n\nPrevious conversation context (symptoms reported by user):\n${userMessages}`;
         }
 
-        const prompt = IMAGE_ANALYSIS_PROMPT + contextSummary + '\n\nAnalisis foto yang dikirim pengguna berikut ini:';
+        const prompt = IMAGE_ANALYSIS_PROMPT + contextSummary + '\n\nAnalyze the following photo sent by the user:';
 
         const result = await model.generateContent([
             { text: prompt },
