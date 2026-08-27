@@ -5,13 +5,14 @@ import ReactMarkdown from 'react-markdown';
 import './ChatbotModal.css';
 
 // System Prompt S.A.F.E.
-const SYSTEM_PROMPT = `Kamu adalah S.A.F.E. AI Assistant — asisten kesehatan digital yang membantu skrining awal kondisi hidung dan sinus.
-- Fokus utamamu adalah memberikan informasi edukatif dan dengan hangat menghimbau pengguna untuk segera memeriksakan diri ke dokter spesialis THT atau fasilitas kesehatan terdekat agar mendapat penanganan terbaik.
-- Gaya bahasamu: ramah, empatik, terstruktur, menggunakan Bahasa Indonesia yang santai tapi profesional.
-- Gunakan format markdown (bullet point, bold) untuk mempermudah pembacaan.
+const SYSTEM_PROMPT = `You are S.A.F.E. AI Assistant — a digital health assistant that helps with initial screening of nose and sinus conditions.
+- Your main focus is providing educational information and warmly encouraging users to see an ENT specialist or visit the nearest healthcare facility for the best treatment.
+- Your tone: friendly, empathetic, structured, using casual but professional English.
+- IMPORTANT: You MUST ALWAYS respond in English, regardless of the language the user uses.
+- Use markdown formatting (bullet points, bold) for better readability.
 
-Tanyakan secara bertahap jika pengguna mengeluhkan sakit: 1. Gejala utama, 2. Durasi, 3. Lokasi (kiri/kanan), 4. Pemicu, 5. Pengobatan.
-Jika pengguna mengirim gambar/foto, analisis warna atau kondisinya dan sarankan tindakan (misal: "cairan hijau mungkin indikasi bakteri"). Selalu berikan dukungan moral dan dorong mereka untuk berkonsultasi langsung dengan dokter.`;
+Ask gradually if the user complains of symptoms: 1. Main symptom, 2. Duration, 3. Location (left/right), 4. Triggers, 5. Medication.
+If the user sends an image/photo, analyze the color or condition and suggest actions (e.g., "green discharge may indicate a bacterial infection"). Always provide moral support and encourage them to consult a doctor directly.`;
 
 // Inisialisasi Gemini (menggunakan API Key dari .env)
 // Catatan: Di lingkungan produksi sungguhan, API Key sebaiknya tidak ditaruh di frontend
@@ -20,10 +21,10 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 const model = genAI ? genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }) : null;
 
 const SUGGESTIONS = [
-  "Hidung saya sering tersumbat pagi hari",
-  "Bagaimana cara mengatasi sinusitis?",
-  "Apa bedanya pilek biasa dan sinus?",
-  "Makanan apa yang baik untuk sinus?"
+  "My nose is often stuffy in the morning",
+  "How do I treat sinusitis?",
+  "What's the difference between a cold and sinus?",
+  "What foods are good for sinus health?"
 ];
 
 const ChatbotModal = () => {
@@ -32,7 +33,7 @@ const ChatbotModal = () => {
     {
       id: 1,
       sender: 'bot',
-      text: "Halo! Saya adalah **S.A.F.E.** AI Assistant. Saya siap membantu Anda berkonsultasi mengenai keluhan hidung, sinus, atau pernapasan Anda. Ada yang bisa saya bantu hari ini?"
+      text: "Hello! I am **S.A.F.E.** AI Assistant. I'm here to help you with any concerns about your nose, sinuses, or breathing. How can I help you today?"
     }
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -44,7 +45,7 @@ const ChatbotModal = () => {
     },
     {
       role: 'model',
-      parts: [{ text: 'Baik, saya S.A.F.E. AI siap membantu konsultasi kesehatan hidung dan sinus. Saya akan mengikuti instruksi yang diberikan.' }]
+      parts: [{ text: 'Understood, I am S.A.F.E. AI, ready to assist with nose and sinus health consultations. I will follow the instructions provided and respond in English.' }]
     }
   ]);
   
@@ -81,7 +82,7 @@ const ChatbotModal = () => {
     
     // Cek ukuran file (max 4MB untuk flash)
     if (file.size > 4 * 1024 * 1024) {
-      alert('Ukuran gambar terlalu besar. Maksimal 4MB.');
+      alert('Image size is too large. Maximum 4MB.');
       return;
     }
 
@@ -106,7 +107,7 @@ const ChatbotModal = () => {
     if (!text && !selectedImage) return;
 
     if (!model) {
-      alert("API Key Gemini belum diatur di file .env. Chatbot tidak bisa berfungsi.");
+      alert("Gemini API Key is not configured in the .env file. Chatbot cannot function.");
       return;
     }
 
@@ -140,7 +141,7 @@ const ChatbotModal = () => {
           .map(h => h.parts[0].text)
           .join('\n');
         
-        const promptWithContext = `${SYSTEM_PROMPT}\n\nKonteks sebelumnya: ${contextMessages}\n\nPengguna mengirim foto dengan pesan: "${text}". Analisis foto ini.`;
+        const promptWithContext = `${SYSTEM_PROMPT}\n\nPrevious context: ${contextMessages}\n\nThe user sent a photo with the message: "${text}". Analyze this photo.`;
 
         const result = await model.generateContent([promptWithContext, imagePart]);
         responseText = result.response.text();
@@ -148,7 +149,7 @@ const ChatbotModal = () => {
         // Simpan ke history agar percakapan tetap nyambung (hanya simpan teksnya)
         setChatHistory(prev => [
           ...prev, 
-          { role: 'user', parts: [{ text: text || "[Mengirim Gambar]" }] },
+          { role: 'user', parts: [{ text: text || "[Sent an Image]" }] },
           { role: 'model', parts: [{ text: responseText }] }
         ]);
 
@@ -178,7 +179,7 @@ const ChatbotModal = () => {
       setMessages(prev => [...prev, { 
         id: Date.now() + 1, 
         sender: 'bot', 
-        text: "⚠️ Maaf, saya sedang mengalami gangguan sistem. Silakan coba lagi nanti. (Error: " + error.message + ")" 
+        text: "⚠️ Sorry, I'm experiencing a system error. Please try again later. (Error: " + error.message + ")" 
       }]);
     } finally {
       setIsLoading(false);
@@ -246,7 +247,7 @@ const ChatbotModal = () => {
         {imagePreview && (
           <div className="image-preview-container">
             <img src={imagePreview} alt="Preview" className="image-preview-thumbnail" />
-            <span>Gambar siap dikirim</span>
+            <span>Image ready to send</span>
             <button className="remove-image-btn" onClick={handleRemoveImage}>
               <X size={16} />
             </button>
@@ -257,7 +258,7 @@ const ChatbotModal = () => {
           <button 
             className="attach-btn" 
             onClick={() => fileInputRef.current?.click()}
-            title="Upload Foto"
+            title="Upload Photo"
             disabled={isLoading}
           >
             <Paperclip size={18} />
@@ -271,7 +272,7 @@ const ChatbotModal = () => {
           />
           <input 
             type="text" 
-            placeholder="Tanya keluhan sinus Anda di sini..." 
+            placeholder="Ask about your sinus concerns here..." 
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
@@ -289,7 +290,7 @@ const ChatbotModal = () => {
 
       <div className="chat-disclaimer">
         <AlertCircle size={14} />
-        <span>S.A.F.E. AI memberikan informasi edukasi dan bukan pengganti diagnosis dokter.</span>
+        <span>S.A.F.E. AI provides educational information and is not a substitute for a doctor's diagnosis.</span>
       </div>
     </div>
   );
