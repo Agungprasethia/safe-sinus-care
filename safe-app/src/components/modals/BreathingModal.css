@@ -1,0 +1,421 @@
+.breathing-modal {
+  padding: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .breathing-modal {
+    padding: 1rem;
+  }
+}
+
+.breathing-header {
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .breathing-header {
+    margin-bottom: 2rem;
+  }
+}
+
+.breathing-header h2 {
+  margin-bottom: 0.5rem;
+}
+
+.technique-selector {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .technique-selector {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+  }
+}
+
+.select-wrapper {
+  position: relative;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .select-wrapper {
+    margin-bottom: 1rem;
+  }
+}
+
+.select-wrapper select {
+  width: 100%;
+  appearance: none;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+  min-height: 48px;
+}
+
+@media (min-width: 768px) {
+  .select-wrapper select {
+    font-size: 1.125rem;
+  }
+}
+
+.select-wrapper select:focus {
+  border-color: var(--primary);
+}
+
+.select-wrapper select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.select-icon {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  pointer-events: none;
+}
+
+.technique-desc {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  .technique-desc {
+    font-size: 0.9375rem;
+  }
+}
+
+/* Overall progress */
+.overall-progress {
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .overall-progress {
+    margin-bottom: 1.5rem;
+  }
+}
+
+.overall-progress-bar-container {
+  height: 6px;
+  background: var(--bg-main);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.overall-progress-bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.5s ease, background-color 0.3s;
+}
+
+.overall-progress-text {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .overall-progress-text {
+    font-size: 0.8125rem;
+  }
+}
+
+/* Breathing circle */
+.breathing-circle-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  height: 220px;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .breathing-circle-container {
+    margin-bottom: 2rem;
+    height: 280px;
+  }
+}
+
+.breathing-circle {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, var(--bg-white) 60%, var(--secondary) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 0 40px rgba(59, 130, 246, 0.1);
+  transition: transform var(--phase-duration, 4s) ease-in-out,
+              box-shadow var(--phase-duration, 4s) ease-in-out;
+}
+
+@media (min-width: 768px) {
+  .breathing-circle {
+    width: 260px;
+    height: 260px;
+  }
+}
+
+.progress-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotate(-90deg);
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.progress-ring-bg {
+  fill: none;
+  stroke: var(--bg-main);
+  stroke-width: 4;
+}
+
+.progress-ring-fill {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+/* Animations */
+.breathing-circle.inhale {
+  transform: scale(1.15);
+  box-shadow: 0 0 60px rgba(59, 130, 246, 0.25);
+}
+
+.breathing-circle.exhale {
+  transform: scale(0.85);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+.breathing-circle.hold {
+  transform: scale(1);
+  box-shadow: 0 0 40px rgba(245, 158, 11, 0.2);
+}
+
+/* Paused state */
+.breathing-circle.paused {
+  transition: none !important;
+  opacity: 0.8;
+}
+
+.circle-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.phase-text {
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: color 0.3s;
+}
+
+@media (min-width: 768px) {
+  .phase-text {
+    font-size: 1.25rem;
+  }
+}
+
+.timer-text {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1;
+  margin: 0.25rem 0;
+}
+
+@media (min-width: 768px) {
+  .timer-text {
+    font-size: 3.5rem;
+  }
+}
+
+.timer-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .timer-label {
+    font-size: 0.75rem;
+  }
+}
+
+.completed-subtext {
+  font-size: 0.8125rem;
+  color: var(--text-light);
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .completed-subtext {
+    font-size: 0.9375rem;
+  }
+}
+
+.cycle-text {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+}
+
+@media (min-width: 768px) {
+  .cycle-text {
+    font-size: 0.875rem;
+  }
+}
+
+/* Phase indicator dots */
+.phase-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .phase-indicators {
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+}
+
+.phase-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0.4;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.phase-dot.active {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.phase-dot.done {
+  opacity: 0.6;
+}
+
+.phase-dot-label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dark);
+}
+
+@media (min-width: 768px) {
+  .phase-dot-label {
+    font-size: 0.6875rem;
+  }
+}
+
+.phase-dot-time {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--secondary);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-full);
+}
+
+@media (min-width: 768px) {
+  .phase-dot-time {
+    font-size: 0.75rem;
+    padding: 0.125rem 0.5rem;
+  }
+}
+
+/* Controls */
+.breathing-controls {
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .breathing-controls {
+    margin-bottom: 2.5rem;
+  }
+}
+
+.w-48 {
+  width: 10rem;
+}
+
+@media (min-width: 768px) {
+  .w-48 {
+    width: 12rem;
+  }
+}
+
+.btn-warning {
+  background-color: var(--warning);
+  color: var(--bg-white);
+}
+
+.btn-warning:hover {
+  background-color: #D97706;
+}
+
+/* Safety reminder */
+.safety-reminder {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  border-radius: var(--radius-md);
+  padding: 0.875rem 1rem;
+}
+
+@media (min-width: 768px) {
+  .safety-reminder {
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+  }
+}
+
+.reminder-icon {
+  color: var(--warning);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.reminder-text {
+  font-size: 0.8125rem;
+  color: #92400E;
+  line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  .reminder-text {
+    font-size: 0.875rem;
+  }
+}
