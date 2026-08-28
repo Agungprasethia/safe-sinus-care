@@ -4,7 +4,7 @@ import './FoodGuideModal.css';
 
 const MEAL_DATA = {
   1: [
-    { type: 'Breakfast', name: 'Warm Oatmeal with Berries', icon: <Coffee size={24} />, nutrients: 'Vitamin C, Antioxidants', benefits: 'Reduces inflammation' },
+    { type: 'Breakfast', name: 'Ginger Brown Rice Chicken Porridge', icon: <Coffee size={24} />, nutrients: 'Complex Carbohydrates, Lean protein, B Vitamins', benefits: 'Loosen trapped nasal fluids' },
     { type: 'Lunch', name: 'Chicken Soup with Garlic', icon: <Utensils size={24} />, nutrients: 'Protein, Allicin', benefits: 'Thins mucus, antibacterial' },
     { type: 'Dinner', name: 'Grilled Mackarel with Stir-fried Chinese Cabbage.', icon: <Utensils size={24} />, nutrients: 'Omega-3', benefits: 'Reduced inflammation.' }
   ],
