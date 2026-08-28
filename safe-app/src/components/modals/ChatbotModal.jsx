@@ -18,7 +18,7 @@ If the user sends an image/photo, analyze the color or condition and suggest act
 // Catatan: Di lingkungan produksi sungguhan, API Key sebaiknya tidak ditaruh di frontend
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
-const model = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
+const model = genAI ? genAI.getGenerativeModel({ model: 'gemini-flash-latest' }) : null;
 
 const SUGGESTIONS = [
   "My nose is often stuffy in the morning",
