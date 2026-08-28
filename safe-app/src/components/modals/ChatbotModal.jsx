@@ -18,7 +18,31 @@ If the user sends an image/photo, analyze the color or condition and suggest act
 // Catatan: Di lingkungan produksi sungguhan, API Key sebaiknya tidak ditaruh di frontend
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
-const model = genAI ? genAI.getGenerativeModel({ model: 'gemini-flash-latest' }) : null;
+
+// Daftar model fallback: jika model pertama 503/overloaded, coba model berikutnya
+const MODEL_NAMES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.5-flash-lite'];
+
+// Helper: coba panggil generateContent dengan retry & fallback model
+const callWithRetry = async (generateFn, maxRetries = 2) => {
+  for (let modelIdx = 0; modelIdx < MODEL_NAMES.length; modelIdx++) {
+    const currentModel = genAI.getGenerativeModel({ model: MODEL_NAMES[modelIdx] });
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await generateFn(currentModel);
+      } catch (err) {
+        const status = err?.status || err?.httpStatusCode || 0;
+        const is503 = status === 503 || (err.message && err.message.includes('503'));
+        const is429 = status === 429 || (err.message && err.message.includes('429'));
+        if ((is503 || is429) && (attempt < maxRetries || modelIdx < MODEL_NAMES.length - 1)) {
+          // Wait before retry (exponential backoff: 1s, 2s, 4s...)
+          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+};
 
 const SUGGESTIONS = [
   "My nose is often stuffy in the morning",
@@ -106,7 +130,7 @@ const ChatbotModal = () => {
     const text = textToUse.trim();
     if (!text && !selectedImage) return;
 
-    if (!model) {
+    if (!genAI) {
       alert("Gemini API Key is not configured in the .env file. Chatbot cannot function.");
       return;
     }
@@ -143,7 +167,9 @@ const ChatbotModal = () => {
         
         const promptWithContext = `${SYSTEM_PROMPT}\n\nPrevious context: ${contextMessages}\n\nThe user sent a photo with the message: "${text}". Analyze this photo.`;
 
-        const result = await model.generateContent([promptWithContext, imagePart]);
+        const result = await callWithRetry(async (m) => {
+          return await m.generateContent([promptWithContext, imagePart]);
+        });
         responseText = result.response.text();
         
         // Simpan ke history agar percakapan tetap nyambung (hanya simpan teksnya)
@@ -154,9 +180,11 @@ const ChatbotModal = () => {
         ]);
 
       } else {
-        // Jika hanya teks, gunakan chat session agar context terjaga
-        const chatSession = model.startChat({ history: chatHistory });
-        const result = await chatSession.sendMessage(text);
+        // Jika hanya teks, gunakan chat session dengan retry & fallback
+        const result = await callWithRetry(async (m) => {
+          const chatSession = m.startChat({ history: chatHistory });
+          return await chatSession.sendMessage(text);
+        });
         responseText = result.response.text();
 
         // Update local history array
