@@ -196,9 +196,16 @@
 }
 
 .badge-2 {
-  bottom: 15%;
-  right: -5%;
+  bottom: 2%;
+  right: -12%;
   animation: float 7s ease-in-out infinite alternate-reverse;
+}
+
+@media (min-width: 768px) {
+  .badge-2 {
+    bottom: 15%;
+    right: -5%;
+  }
 }
 
 @keyframes float {
