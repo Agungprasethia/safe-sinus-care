@@ -54,10 +54,6 @@ const ENVIRONMENTAL = [
 
 const RiskAssessmentModal = () => {
   const [step, setStep] = useState(1);
-  // Using 0-indexed values for question tracking
-  const [symptomIndex, setSymptomIndex] = useState(0);
-  const [lifestyleIndex, setLifestyleIndex] = useState(0);
-  const [envIndex, setEnvIndex] = useState(0);
 
   const [answers, setAnswers] = useState({
     symptoms: {},
@@ -70,59 +66,16 @@ const RiskAssessmentModal = () => {
   const totalQuestions = SYMPTOMS.length + LIFESTYLE_QUESTIONS.length + ENVIRONMENTAL.length;
   const progressPercentage = (totalAnswered / totalQuestions) * 100;
 
-  const handleSelectSymptom = (answer) => {
-    setAnswers(prev => ({ ...prev, symptoms: { ...prev.symptoms, [symptomIndex]: answer } }));
-    setTimeout(() => {
-      if (symptomIndex < SYMPTOMS.length - 1) {
-        setSymptomIndex(symptomIndex + 1);
-      } else {
-        setStep(2);
-      }
-    }, 300);
+  const handleSelectSymptom = (index, answer) => {
+    setAnswers(prev => ({ ...prev, symptoms: { ...prev.symptoms, [index]: answer } }));
   };
 
-  const handleSelectLifestyle = (answer) => {
-    setAnswers(prev => ({ ...prev, lifestyle: { ...prev.lifestyle, [lifestyleIndex]: answer } }));
-    setTimeout(() => {
-      if (lifestyleIndex < LIFESTYLE_QUESTIONS.length - 1) {
-        setLifestyleIndex(lifestyleIndex + 1);
-      } else {
-        setStep(3);
-      }
-    }, 300);
+  const handleSelectLifestyle = (index, answer) => {
+    setAnswers(prev => ({ ...prev, lifestyle: { ...prev.lifestyle, [index]: answer } }));
   };
 
-  const handleSelectEnv = (answer) => {
-    setAnswers(prev => ({ ...prev, environmental: { ...prev.environmental, [envIndex]: answer } }));
-    setTimeout(() => {
-      if (envIndex < ENVIRONMENTAL.length - 1) {
-        setEnvIndex(envIndex + 1);
-      } else {
-        setStep(4);
-      }
-    }, 300);
-  };
-
-  const goBackSymptom = () => {
-    if (symptomIndex > 0) setSymptomIndex(symptomIndex - 1);
-  };
-
-  const goBackLifestyle = () => {
-    if (lifestyleIndex > 0) {
-      setLifestyleIndex(lifestyleIndex - 1);
-    } else {
-      setStep(1);
-      setSymptomIndex(SYMPTOMS.length - 1);
-    }
-  };
-
-  const goBackEnv = () => {
-    if (envIndex > 0) {
-      setEnvIndex(envIndex - 1);
-    } else {
-      setStep(2);
-      setLifestyleIndex(LIFESTYLE_QUESTIONS.length - 1);
-    }
+  const handleSelectEnv = (index, answer) => {
+    setAnswers(prev => ({ ...prev, environmental: { ...prev.environmental, [index]: answer } }));
   };
 
   const SYMPTOM_WEIGHTS = { "Very Often": 3, "Often": 2, "Sometimes": 1, "Never": 0 };
@@ -136,7 +89,6 @@ const RiskAssessmentModal = () => {
   };
 
   const calcLifestyleScore = () => {
-    // Higher index options are generally worse for sinus health
     const vals = Object.values(answers.lifestyle);
     if (vals.length === 0) return 0;
     let total = 0;
@@ -241,9 +193,6 @@ const RiskAssessmentModal = () => {
 
   const resetAssessment = () => {
     setStep(1);
-    setSymptomIndex(0);
-    setLifestyleIndex(0);
-    setEnvIndex(0);
     setAnswers({ symptoms: {}, lifestyle: {}, environmental: {} });
   };
 
@@ -282,25 +231,33 @@ const RiskAssessmentModal = () => {
             <h2 className="slide-title">Symptom Assessment</h2>
             <p className="slide-subtitle">Please select how often you experience each symptom.</p>
             
-            <div className="question-card card">
-              <span className="question-number">Question {symptomIndex + 1} of {SYMPTOMS.length}</span>
-              <h3>{SYMPTOMS[symptomIndex]}</h3>
-              <div className="options-grid">
-                {["Very Often", "Often", "Sometimes", "Never"].map(opt => (
-                  <div 
-                    key={opt} 
-                    className={`selectable-card ${answers.symptoms[symptomIndex] === opt ? 'selected' : ''}`}
-                    onClick={() => handleSelectSymptom(opt)}
-                  >
-                    {opt}
+            <div className="questions-list">
+              {SYMPTOMS.map((symptom, index) => (
+                <div key={index} className="question-card card">
+                  <span className="question-number">Question {index + 1} of {SYMPTOMS.length}</span>
+                  <h3>{symptom}</h3>
+                  <div className="options-grid">
+                    {["Very Often", "Often", "Sometimes", "Never"].map(opt => (
+                      <div 
+                        key={opt} 
+                        className={`selectable-card ${answers.symptoms[index] === opt ? 'selected' : ''}`}
+                        onClick={() => handleSelectSymptom(index, opt)}
+                      >
+                        {opt}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
 
-            <div className="slide-actions">
-              <button className="btn btn-outline" onClick={goBackSymptom} disabled={symptomIndex === 0}>
-                <ChevronLeft size={20} /> Previous
+            <div className="slide-actions slide-actions-right">
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setStep(2)}
+                disabled={Object.keys(answers.symptoms).length < SYMPTOMS.length}
+              >
+                Next <ChevronRight size={20} />
               </button>
             </div>
 
@@ -314,25 +271,37 @@ const RiskAssessmentModal = () => {
         {step === 2 && (
           <div className="question-slide animate-slide-in">
             <h2 className="slide-title">Lifestyle Factors</h2>
-            <div className="question-card card">
-              <span className="question-number">Question {lifestyleIndex + 1} of {LIFESTYLE_QUESTIONS.length}</span>
-              <h3>{LIFESTYLE_QUESTIONS[lifestyleIndex].question}</h3>
-              <div className="options-grid">
-                {LIFESTYLE_QUESTIONS[lifestyleIndex].options.map(opt => (
-                  <div 
-                    key={opt} 
-                    className={`selectable-card ${answers.lifestyle[lifestyleIndex] === opt ? 'selected' : ''}`}
-                    onClick={() => handleSelectLifestyle(opt)}
-                  >
-                    {opt}
+            
+            <div className="questions-list">
+              {LIFESTYLE_QUESTIONS.map((q, index) => (
+                <div key={index} className="question-card card">
+                  <span className="question-number">Question {index + 1} of {LIFESTYLE_QUESTIONS.length}</span>
+                  <h3>{q.question}</h3>
+                  <div className="options-grid">
+                    {q.options.map(opt => (
+                      <div 
+                        key={opt} 
+                        className={`selectable-card ${answers.lifestyle[index] === opt ? 'selected' : ''}`}
+                        onClick={() => handleSelectLifestyle(index, opt)}
+                      >
+                        {opt}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
 
             <div className="slide-actions">
-              <button className="btn btn-outline" onClick={goBackLifestyle}>
+              <button className="btn btn-outline" onClick={() => setStep(1)}>
                 <ChevronLeft size={20} /> Previous
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setStep(3)}
+                disabled={Object.keys(answers.lifestyle).length < LIFESTYLE_QUESTIONS.length}
+              >
+                Next <ChevronRight size={20} />
               </button>
             </div>
             
@@ -346,25 +315,37 @@ const RiskAssessmentModal = () => {
         {step === 3 && (
           <div className="question-slide animate-slide-in">
             <h2 className="slide-title">Environmental Factors</h2>
-            <div className="question-card card">
-              <span className="question-number">Question {envIndex + 1} of {ENVIRONMENTAL.length}</span>
-              <h3>{ENVIRONMENTAL[envIndex]}</h3>
-              <div className="options-grid">
-                {["Never", "Rarely", "Sometimes", "Often", "Almost every day"].map(opt => (
-                  <div 
-                    key={opt} 
-                    className={`selectable-card ${answers.environmental[envIndex] === opt ? 'selected' : ''}`}
-                    onClick={() => handleSelectEnv(opt)}
-                  >
-                    {opt}
+            
+            <div className="questions-list">
+              {ENVIRONMENTAL.map((env, index) => (
+                <div key={index} className="question-card card">
+                  <span className="question-number">Question {index + 1} of {ENVIRONMENTAL.length}</span>
+                  <h3>{env}</h3>
+                  <div className="options-grid">
+                    {["Never", "Rarely", "Sometimes", "Often", "Almost every day"].map(opt => (
+                      <div 
+                        key={opt} 
+                        className={`selectable-card ${answers.environmental[index] === opt ? 'selected' : ''}`}
+                        onClick={() => handleSelectEnv(index, opt)}
+                      >
+                        {opt}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
 
             <div className="slide-actions">
-              <button className="btn btn-outline" onClick={goBackEnv}>
+              <button className="btn btn-outline" onClick={() => setStep(2)}>
                 <ChevronLeft size={20} /> Previous
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setStep(4)}
+                disabled={Object.keys(answers.environmental).length < ENVIRONMENTAL.length}
+              >
+                See Results <ChevronRight size={20} />
               </button>
             </div>
             
@@ -436,3 +417,4 @@ const RiskAssessmentModal = () => {
 };
 
 export default RiskAssessmentModal;
+
