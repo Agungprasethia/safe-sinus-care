@@ -255,7 +255,6 @@ const RiskAssessmentModal = () => {
               <button 
                 className="btn btn-primary" 
                 onClick={() => setStep(2)}
-                disabled={Object.keys(answers.symptoms).length < SYMPTOMS.length}
               >
                 Next <ChevronRight size={20} />
               </button>
@@ -299,7 +298,6 @@ const RiskAssessmentModal = () => {
               <button 
                 className="btn btn-primary" 
                 onClick={() => setStep(3)}
-                disabled={Object.keys(answers.lifestyle).length < LIFESTYLE_QUESTIONS.length}
               >
                 Next <ChevronRight size={20} />
               </button>
@@ -343,7 +341,6 @@ const RiskAssessmentModal = () => {
               <button 
                 className="btn btn-primary" 
                 onClick={() => setStep(4)}
-                disabled={Object.keys(answers.environmental).length < ENVIRONMENTAL.length}
               >
                 See Results <ChevronRight size={20} />
               </button>
