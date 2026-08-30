@@ -20,7 +20,7 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 // Daftar model fallback: jika model pertama 503/overloaded, coba model berikutnya
-const MODEL_NAMES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.5-flash-lite'];
+const MODEL_NAMES = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.5-flash'];
 
 // Helper: coba panggil generateContent dengan retry & fallback model
 const callWithRetry = async (generateFn, maxRetries = 2) => {
@@ -33,7 +33,8 @@ const callWithRetry = async (generateFn, maxRetries = 2) => {
         const status = err?.status || err?.httpStatusCode || 0;
         const is503 = status === 503 || (err.message && err.message.includes('503'));
         const is429 = status === 429 || (err.message && err.message.includes('429'));
-        if ((is503 || is429) && (attempt < maxRetries || modelIdx < MODEL_NAMES.length - 1)) {
+        const is404 = status === 404 || (err.message && err.message.includes('404'));
+        if ((is503 || is429 || is404) && (attempt < maxRetries || modelIdx < MODEL_NAMES.length - 1)) {
           // Wait before retry (exponential backoff: 1s, 2s, 4s...)
           await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
           continue;
