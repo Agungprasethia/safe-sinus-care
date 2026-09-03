@@ -1,6 +1,6 @@
 import React from 'react';
 import './FeatureGrid.css';
-import { Stethoscope, History, MessageSquare, BookOpen, Apple, Wind, Activity } from 'lucide-react';
+import { Stethoscope, History, MessageSquare, BookOpen, Apple, Wind, Activity, Droplet } from 'lucide-react';
 
 const features = [
   {
@@ -20,6 +20,12 @@ const features = [
     title: 'CONSULT CHATBOT AI',
     description: 'Chat with an intelligent sinus health assistant.',
     icon: <MessageSquare size={32} />
+  },
+  {
+    id: 'mucus',
+    title: 'MUCUS COLOR SCAN',
+    description: 'Upload a photo of your nasal mucus to analyze its color and get health insights.',
+    icon: <Droplet size={32} />
   },
   {
     id: 'workout',

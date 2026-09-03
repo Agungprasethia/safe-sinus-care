@@ -12,6 +12,7 @@ import ArticlesModal from './components/modals/ArticlesModal';
 import FoodGuideModal from './components/modals/FoodGuideModal';
 import WorkoutModal from './components/modals/WorkoutModal';
 import BreathingModal from './components/modals/BreathingModal';
+import MucusScanModal from './components/modals/MucusScanModal';
 
 function App() {
   const [activeModal, setActiveModal] = useState(null);
@@ -31,6 +32,7 @@ function App() {
       case 'chatbot': return <ChatbotModal />;
       case 'workout': return <WorkoutModal />;
       case 'breathing': return <BreathingModal />;
+      case 'mucus': return <MucusScanModal />;
       default: return null;
     }
   };
