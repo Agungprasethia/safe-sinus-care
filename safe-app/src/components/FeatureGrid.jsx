@@ -1,6 +1,6 @@
 import React from 'react';
 import './FeatureGrid.css';
-import { Stethoscope, History, MessageSquare, BookOpen, Apple, Wind, Activity, Droplet } from 'lucide-react';
+import { Stethoscope, History, MessageSquare, BookOpen, Apple, Wind, Activity, Droplet, MapPin } from 'lucide-react';
 
 const features = [
   {
@@ -38,6 +38,12 @@ const features = [
     title: 'BREATHING TRAINING',
     description: 'Guided breathing exercises.',
     icon: <Activity size={32} />
+  },
+  {
+    id: 'hospital',
+    title: 'FIND NEARBY HOSPITAL',
+    description: 'Locate hospitals and clinics near you for sinus care and emergencies.',
+    icon: <MapPin size={32} />
   }
 ];
 
