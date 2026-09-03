@@ -54,64 +54,145 @@ const HospitalFinderModal = () => {
     return R * c;
   };
 
-  // Fetch hospitals from Overpass API (OpenStreetMap)
+  // Fetch hospitals using Nominatim API (primary, most reliable)
+  const fetchWithNominatim = async (lat, lon, radius) => {
+    const radiusKm = radius / 1000;
+    const delta = radiusKm / 111; // rough degree conversion
+    const viewbox = `${lon - delta},${lat + delta},${lon + delta},${lat - delta}`;
+
+    const searches = ['hospital', 'clinic', 'rumah sakit', 'klinik'];
+    const allResults = [];
+    const seenIds = new Set();
+
+    for (const query of searches) {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${viewbox}&bounded=1&limit=50&addressdetails=1`;
+      
+      const response = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'SAFE-SinusCare-App/1.0' }
+      });
+
+      if (!response.ok) continue;
+      const data = await response.json();
+
+      for (const place of data) {
+        if (seenIds.has(place.place_id)) continue;
+        seenIds.add(place.place_id);
+
+        const pLat = parseFloat(place.lat);
+        const pLon = parseFloat(place.lon);
+        const distance = calculateDistance(lat, lon, pLat, pLon);
+
+        if (distance <= radiusKm) {
+          allResults.push({
+            id: place.place_id,
+            name: place.display_name.split(',')[0] || 'Hospital/Clinic',
+            lat: pLat,
+            lon: pLon,
+            distance: distance,
+            type: place.type || 'hospital',
+            phone: null,
+            website: null,
+            address: place.display_name.split(',').slice(1, 4).join(',').trim() || null,
+            openingHours: null,
+            emergency: false,
+            operator: null
+          });
+        }
+      }
+
+      // Rate limit: Nominatim requires max 1 request/second
+      await new Promise(r => setTimeout(r, 1100));
+    }
+
+    return allResults;
+  };
+
+  // Fetch hospitals using Overpass API (fallback, with multiple mirrors)
+  const fetchWithOverpass = async (lat, lon, radius) => {
+    const query = `[out:json][timeout:25];(node["amenity"="hospital"](around:${radius},${lat},${lon});way["amenity"="hospital"](around:${radius},${lat},${lon});node["amenity"="clinic"](around:${radius},${lat},${lon});way["amenity"="clinic"](around:${radius},${lat},${lon}););out center body;`;
+
+    const mirrors = [
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass-api.de/api/interpreter',
+      'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+    ];
+
+    for (const baseUrl of mirrors) {
+      try {
+        const response = await fetch(`${baseUrl}?data=${encodeURIComponent(query)}`, {
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) continue;
+        const data = await response.json();
+
+        return data.elements
+          .map((el) => {
+            const elLat = el.lat || el.center?.lat;
+            const elLon = el.lon || el.center?.lon;
+            if (!elLat || !elLon) return null;
+
+            const tags = el.tags || {};
+            const distance = calculateDistance(lat, lon, elLat, elLon);
+
+            return {
+              id: el.id,
+              name: tags.name || tags['name:en'] || tags['name:id'] || 'Unnamed Hospital/Clinic',
+              lat: elLat,
+              lon: elLon,
+              distance: distance,
+              type: tags.amenity || tags.healthcare || 'hospital',
+              phone: tags.phone || tags['contact:phone'] || null,
+              website: tags.website || tags['contact:website'] || null,
+              address: [tags['addr:street'], tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ') || null,
+              openingHours: tags.opening_hours || null,
+              emergency: tags.emergency === 'yes',
+              operator: tags.operator || null
+            };
+          })
+          .filter(Boolean);
+      } catch {
+        continue;
+      }
+    }
+
+    return [];
+  };
+
+  // Main fetch function: try Nominatim first, then Overpass
   const fetchHospitals = useCallback(async (lat, lon, radius) => {
     setLoading(true);
     setError(null);
     try {
-      const query = `
-        [out:json][timeout:25];
-        (
-          node["amenity"="hospital"](around:${radius},${lat},${lon});
-          way["amenity"="hospital"](around:${radius},${lat},${lon});
-          node["amenity"="clinic"](around:${radius},${lat},${lon});
-          way["amenity"="clinic"](around:${radius},${lat},${lon});
-          node["healthcare"="hospital"](around:${radius},${lat},${lon});
-          way["healthcare"="hospital"](around:${radius},${lat},${lon});
-        );
-        out center body;
-      `;
+      let results = [];
 
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: `data=${encodeURIComponent(query)}`,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      });
+      // Strategy 1: Nominatim (most reliable)
+      try {
+        results = await fetchWithNominatim(lat, lon, radius);
+      } catch (e) {
+        console.warn('Nominatim failed, trying Overpass...', e);
+      }
 
-      if (!response.ok) throw new Error('Failed to fetch hospital data');
-
-      const data = await response.json();
-
-      const results = data.elements
-        .map((el) => {
-          const elLat = el.lat || el.center?.lat;
-          const elLon = el.lon || el.center?.lon;
-          if (!elLat || !elLon) return null;
-
-          const tags = el.tags || {};
-          const distance = calculateDistance(lat, lon, elLat, elLon);
-
-          return {
-            id: el.id,
-            name: tags.name || tags['name:en'] || tags['name:id'] || 'Unnamed Hospital/Clinic',
-            lat: elLat,
-            lon: elLon,
-            distance: distance,
-            type: tags.amenity || tags.healthcare || 'hospital',
-            phone: tags.phone || tags['contact:phone'] || null,
-            website: tags.website || tags['contact:website'] || null,
-            address: [tags['addr:street'], tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ') || null,
-            openingHours: tags.opening_hours || null,
-            emergency: tags.emergency === 'yes',
-            operator: tags.operator || null
-          };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.distance - b.distance);
-
-      setHospitals(results);
-
+      // Strategy 2: Overpass mirrors (fallback)
       if (results.length === 0) {
+        try {
+          results = await fetchWithOverpass(lat, lon, radius);
+        } catch (e) {
+          console.warn('Overpass also failed', e);
+        }
+      }
+
+      // De-duplicate by proximity (within 50m = same hospital)
+      const unique = [];
+      for (const r of results) {
+        const isDuplicate = unique.some(u => calculateDistance(u.lat, u.lon, r.lat, r.lon) < 0.05);
+        if (!isDuplicate) unique.push(r);
+      }
+
+      unique.sort((a, b) => a.distance - b.distance);
+      setHospitals(unique);
+
+      if (unique.length === 0) {
         setError(`No hospitals found within ${radius / 1000} km. Try increasing the search radius.`);
       }
     } catch (err) {
