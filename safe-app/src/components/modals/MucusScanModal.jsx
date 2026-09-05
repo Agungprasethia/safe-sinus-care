@@ -35,8 +35,8 @@ const MUCUS_COLORS = [
     color: '#FEF3C7',
     textColor: '#92400E',
     hueRange: [35, 65],
-    satRange: [30, 100],
-    lightRange: [50, 85],
+    satRange: [15, 100],
+    lightRange: [30, 90],
     riskScore: 2,
     severity: 'Moderate',
     description: 'Yellow mucus suggests your immune system is actively fighting an infection. White blood cells rush to the site and produce enzymes that give mucus a yellow tint.',
@@ -47,9 +47,9 @@ const MUCUS_COLORS = [
     label: 'Green',
     color: '#DCFCE7',
     textColor: '#166534',
-    hueRange: [80, 160],
-    satRange: [20, 100],
-    lightRange: [25, 75],
+    hueRange: [65, 170],
+    satRange: [15, 100],
+    lightRange: [20, 85],
     riskScore: 3,
     severity: 'High',
     description: 'Green mucus indicates a strong immune response, often associated with a bacterial infection. The green color comes from a large concentration of dead white blood cells and bacteria.',
@@ -61,8 +61,9 @@ const MUCUS_COLORS = [
     color: '#FEE2E2',
     textColor: '#991B1B',
     hueRange: [0, 35],
-    satRange: [20, 80],
-    lightRange: [20, 60],
+    altHueRange: [330, 360],
+    satRange: [15, 100],
+    lightRange: [15, 80],
     riskScore: 3,
     severity: 'High',
     description: 'Brown or reddish mucus may contain dried blood. This can result from nasal dryness, frequent nose blowing, or irritation of nasal tissue.',
@@ -75,7 +76,7 @@ const MUCUS_COLORS = [
     textColor: '#F8FAFC',
     hueRange: null,
     satRange: [0, 100],
-    lightRange: [0, 20],
+    lightRange: [0, 25],
     riskScore: 4,
     severity: 'Serious',
     description: 'Black mucus can be caused by heavy pollution, smoke inhalation, or in rare cases, a serious fungal infection (especially in immunocompromised individuals).',
@@ -104,16 +105,39 @@ const MucusScanModal = () => {
       ctx.drawImage(img, 0, 0, size, size);
       const imageData = ctx.getImageData(0, 0, size, size).data;
 
-      let totalR = 0, totalG = 0, totalB = 0, count = 0;
+      let pixels = [];
       for (let i = 0; i < imageData.length; i += 4) {
-        totalR += imageData[i];
-        totalG += imageData[i + 1];
-        totalB += imageData[i + 2];
-        count++;
+        const r = imageData[i];
+        const g = imageData[i + 1];
+        const b = imageData[i + 2];
+        
+        const rNorm = r/255, gNorm = g/255, bNorm = b/255;
+        const maxC = Math.max(rNorm, gNorm, bNorm);
+        const minC = Math.min(rNorm, gNorm, bNorm);
+        const l = (maxC + minC) / 2;
+        let s = 0;
+        if (maxC !== minC) {
+          s = l > 0.5 ? (maxC - minC) / (2 - maxC - minC) : (maxC - minC) / (maxC + minC);
+        }
+        
+        const chroma = s * (1 - Math.abs(2*l - 1));
+        pixels.push({ r, g, b, chroma, l, s });
       }
-      const avgR = totalR / count;
-      const avgG = totalG / count;
-      const avgB = totalB / count;
+
+      pixels.sort((a, b) => b.chroma - a.chroma);
+      
+      const topCount = Math.max(1, Math.floor(pixels.length * 0.15));
+      let topPixels = pixels.slice(0, topCount);
+      
+      let totalR = 0, totalG = 0, totalB = 0;
+      for (const p of topPixels) {
+        totalR += p.r;
+        totalG += p.g;
+        totalB += p.b;
+      }
+      const avgR = totalR / topPixels.length;
+      const avgG = totalG / topPixels.length;
+      const avgB = totalB / topPixels.length;
 
       const r = avgR / 255, g = avgG / 255, b = avgB / 255;
       const max = Math.max(r, g, b), min = Math.min(r, g, b);
@@ -135,17 +159,18 @@ const MucusScanModal = () => {
 
       let matched = MUCUS_COLORS[0];
 
-      if (l <= 20) {
+      if (l <= 25) {
         matched = MUCUS_COLORS.find(c => c.id === 'black');
-      } else if (s <= 15 && l >= 80) {
+      } else if (s <= 15 && l >= 75) {
         matched = MUCUS_COLORS.find(c => c.id === 'clear');
-      } else if (s <= 20 && l >= 60 && l < 80) {
+      } else if (s <= 20 && l >= 55 && l < 75) {
         matched = MUCUS_COLORS.find(c => c.id === 'white');
       } else {
         for (const mc of MUCUS_COLORS) {
           if (!mc.hueRange) continue;
-          if (h >= mc.hueRange[0] && h <= mc.hueRange[1] &&
-              s >= mc.satRange[0] && s <= mc.satRange[1] &&
+          const inHue = (h >= mc.hueRange[0] && h <= mc.hueRange[1]) || 
+                        (mc.altHueRange && h >= mc.altHueRange[0] && h <= mc.altHueRange[1]);
+          if (inHue && s >= mc.satRange[0] && s <= mc.satRange[1] &&
               l >= mc.lightRange[0] && l <= mc.lightRange[1]) {
             matched = mc;
             break;
