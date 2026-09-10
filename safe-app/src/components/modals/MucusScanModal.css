@@ -1,5 +1,5 @@
 /* ========================================
-   MUCUS SCAN MODAL — Standalone
+   MUCUS SCAN MODAL — Revised Step-based Flow
    ======================================== */
 
 .mucus-modal {
@@ -34,16 +34,289 @@
   line-height: 1.5;
 }
 
-/* Dropzone */
+/* ========================================
+   ERROR BANNER
+   ======================================== */
+.ms-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: #FEF2F2;
+  border-radius: var(--radius-md, 16px);
+  border-left: 3px solid var(--danger, #EF4444);
+  margin-bottom: 1.25rem;
+  animation: msFadeIn 0.3s ease;
+}
+
+.ms-error-banner svg {
+  flex-shrink: 0;
+  color: var(--danger, #EF4444);
+}
+
+.ms-error-banner p {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #991B1B;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.ms-error-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #991B1B;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.ms-error-close:hover {
+  background: rgba(153, 27, 27, 0.1);
+}
+
+/* ========================================
+   STEPS
+   ======================================== */
+.ms-step {
+  margin-bottom: 1.5rem;
+}
+
+.ms-step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ms-step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--secondary, #DBEAFE);
+  color: var(--primary, #2563EB);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.ms-step-number.completed {
+  background: var(--success, #22C55E);
+  color: white;
+}
+
+.ms-step-title h3 {
+  font-size: 1rem;
+  margin-bottom: 0.125rem;
+  color: var(--text-dark);
+}
+
+.ms-step-title p {
+  font-size: 0.8125rem;
+  color: var(--text-light);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ========================================
+   COLOR DROPDOWN
+   ======================================== */
+.ms-color-dropdown-wrapper {
+  position: relative;
+}
+
+.ms-color-dropdown-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md, 16px);
+  border: 2px solid var(--border, #E2E8F0);
+  background: var(--bg-white, #FFFFFF);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  min-height: 52px;
+  text-align: left;
+}
+
+.ms-color-dropdown-trigger:hover {
+  border-color: var(--primary, #2563EB);
+}
+
+.ms-color-dropdown-trigger.open {
+  border-color: var(--primary, #2563EB);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.ms-color-dropdown-trigger.has-value {
+  border-color: var(--primary, #2563EB);
+  background: rgba(37, 99, 235, 0.02);
+}
+
+.ms-dropdown-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--text-light, #64748B);
+}
+
+.ms-dropdown-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.ms-dropdown-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm, 8px);
+  flex-shrink: 0;
+}
+
+.ms-dropdown-label {
+  font-weight: 600;
+  color: var(--text-dark, #1E293B);
+}
+
+.ms-dropdown-severity {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full, 9999px);
+  margin-left: auto;
+}
+
+.ms-dropdown-severity.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16A34A;
+}
+
+.ms-dropdown-severity.warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #D97706;
+}
+
+.ms-dropdown-severity.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #DC2626;
+}
+
+.ms-dropdown-chevron {
+  color: var(--text-light);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.ms-dropdown-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+.ms-color-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--bg-white, #FFFFFF);
+  border: 1px solid var(--border, #E2E8F0);
+  border-radius: var(--radius-md, 16px);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  overflow: hidden;
+  animation: msDropdownOpen 0.2s ease;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+@keyframes msDropdownOpen {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ms-color-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+}
+
+.ms-color-option:hover {
+  background: var(--bg-main, #F8FAFC);
+}
+
+.ms-color-option.selected {
+  background: var(--secondary, #DBEAFE);
+}
+
+.ms-color-option + .ms-color-option {
+  border-top: 1px solid var(--border, #E2E8F0);
+}
+
+.ms-option-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ms-option-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.ms-option-label {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-dark, #1E293B);
+}
+
+.ms-option-desc {
+  font-size: 0.75rem;
+  color: var(--text-light, #64748B);
+}
+
+.ms-option-check {
+  color: var(--primary, #2563EB);
+  flex-shrink: 0;
+}
+
+/* ========================================
+   DROPZONE (preserved from original)
+   ======================================== */
 .ms-dropzone {
   border: 2px dashed var(--border);
   border-radius: var(--radius-lg, 1rem);
-  padding: 2.5rem 1.5rem;
+  padding: 2rem 1.5rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
   background: var(--bg-light, #F8FAFC);
-  margin-bottom: 1.5rem;
 }
 
 .ms-dropzone:hover {
@@ -60,7 +333,7 @@
 
 .ms-dropzone-icon {
   color: var(--text-light);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   opacity: 0.6;
   transition: all 0.3s ease;
 }
@@ -72,15 +345,15 @@
 }
 
 .ms-dropzone h3 {
-  font-size: 1.125rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.0625rem;
+  margin-bottom: 0.375rem;
   color: var(--text-dark);
 }
 
 .ms-dropzone p {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--text-light);
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .ms-dropzone-buttons {
@@ -94,23 +367,26 @@
   min-height: 44px;
 }
 
-/* Preview */
+/* ========================================
+   PREVIEW (preserved from original)
+   ======================================== */
 .ms-preview-container {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .ms-preview-image-wrapper {
   position: relative;
   border-radius: var(--radius-lg, 1rem);
   overflow: hidden;
-  margin-bottom: 1rem;
   box-shadow: var(--shadow-md);
-  max-height: 320px;
+  max-height: 280px;
 }
 
 .ms-preview-image {
   width: 100%;
-  max-height: 320px;
+  max-height: 280px;
   object-fit: cover;
   display: block;
 }
@@ -140,45 +416,223 @@
   transform: scale(1.1);
 }
 
-/* Analyzing Spinner */
-.ms-analyzing {
+.ms-change-image-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  color: var(--primary, #2563EB);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: opacity 0.2s;
+}
+
+.ms-change-image-btn:hover {
+  opacity: 0.7;
+}
+
+/* ========================================
+   SCAN NOW SECTION
+   ======================================== */
+.ms-scan-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 0;
+  margin-bottom: 0.5rem;
+  border-top: 1px solid var(--border, #E2E8F0);
+  border-bottom: 1px solid var(--border, #E2E8F0);
+}
+
+.ms-scan-btn {
+  width: 100%;
+  max-width: 400px;
+  font-size: 1.0625rem;
+  padding: 0.875rem 2rem;
+  border-radius: var(--radius-full, 9999px);
+  transition: all 0.25s ease;
+}
+
+.ms-scan-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.ms-scan-btn.disabled:hover {
+  transform: none;
+}
+
+.ms-scan-hint {
+  font-size: 0.8125rem;
+  color: var(--text-light, #64748B);
+  text-align: center;
+  margin: 0;
+}
+
+.ms-btn-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: msSpin 0.7s linear infinite;
+}
+
+/* ========================================
+   LOADING STATE
+   ======================================== */
+.ms-loading-card {
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  animation: msFadeIn 0.3s ease;
+}
+
+.ms-loading-content {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
-.ms-spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--border);
+.ms-spinner-large {
+  width: 40px;
+  height: 40px;
+  border: 3.5px solid var(--border);
   border-top-color: var(--primary);
   border-radius: 50%;
   animation: msSpin 0.8s linear infinite;
   flex-shrink: 0;
 }
 
-@keyframes msSpin {
-  to { transform: rotate(360deg); }
+.ms-loading-text h4 {
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+  color: var(--text-dark);
 }
 
-.ms-analyzing p {
-  font-size: 0.9375rem;
+.ms-loading-text p {
+  font-size: 0.8125rem;
   color: var(--text-light);
-  font-weight: 500;
+  margin: 0;
 }
 
-/* Analysis Result */
-.ms-result {
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+.ms-loading-bar-wrapper {
+  width: 100%;
+  height: 6px;
+  background: var(--secondary, #DBEAFE);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.ms-loading-bar {
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, var(--primary), var(--accent, #60A5FA));
+  border-radius: var(--radius-full);
+  animation: msLoadingSlide 1.2s ease-in-out infinite;
+}
+
+@keyframes msLoadingSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* ========================================
+   RESULTS SECTION
+   ======================================== */
+.ms-results-section {
+  margin-bottom: 1.5rem;
   animation: msFadeIn 0.4s ease;
 }
 
-@keyframes msFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+.ms-results-title {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+}
+
+.ms-results-icon {
+  color: var(--success, #22C55E);
+}
+
+.ms-results-title h3 {
+  font-size: 1.125rem;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+/* Summary Cards */
+.ms-summary-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.ms-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ms-summary-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-light, #64748B);
+}
+
+.ms-summary-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-dark, #1E293B);
+}
+
+.ms-summary-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm, 8px);
+  flex-shrink: 0;
+}
+
+/* Result Image */
+.ms-result-image-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ms-result-image-wrapper {
+  border-radius: var(--radius-md, 16px);
+  overflow: hidden;
+  max-height: 220px;
+}
+
+.ms-result-image {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Main Analysis Result (preserved and enhanced) */
+.ms-result {
+  padding: 1.25rem;
+  margin-bottom: 0.75rem;
+  animation: msFadeIn 0.4s ease;
 }
 
 .ms-result-header {
@@ -212,11 +666,50 @@
   width: fit-content;
 }
 
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.score-badge.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16A34A;
+}
+
+.score-badge.warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #D97706;
+}
+
+.score-badge.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #DC2626;
+}
+
+.ms-result-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ms-result-block h4 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-light, #64748B);
+  margin-bottom: 0.375rem;
+}
+
 .ms-description {
   font-size: 0.9375rem;
   color: var(--text-dark);
   line-height: 1.6;
-  margin-bottom: 1rem;
+  margin: 0;
 }
 
 .ms-advice {
@@ -235,6 +728,15 @@
   margin-top: 0.125rem;
 }
 
+.ms-advice h4 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary, #2563EB);
+  margin-bottom: 0.25rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .ms-advice p {
   font-size: 0.875rem;
   color: var(--text-dark);
@@ -242,13 +744,27 @@
   margin: 0;
 }
 
-.ms-retake-btn {
+.ms-reset-btn {
   width: 100%;
   justify-content: center;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
-/* Color Reference Guide */
+/* ========================================
+   SPINNER (preserved from original)
+   ======================================== */
+@keyframes msSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes msFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
+   COLOR REFERENCE GUIDE (preserved)
+   ======================================== */
 .ms-color-guide {
   margin-bottom: 1.5rem;
 }
@@ -317,7 +833,9 @@
   font-weight: 500;
 }
 
-/* Disclaimer */
+/* ========================================
+   DISCLAIMER (preserved)
+   ======================================== */
 .ms-disclaimer {
   display: flex;
   align-items: flex-start;
@@ -342,7 +860,9 @@
   margin: 0;
 }
 
-/* Footer */
+/* ========================================
+   FOOTER (preserved)
+   ======================================== */
 .ms-footer {
   text-align: center;
   font-size: 0.75rem;
