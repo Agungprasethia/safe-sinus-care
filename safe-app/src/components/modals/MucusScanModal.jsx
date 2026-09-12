@@ -127,39 +127,26 @@ const MucusScanModal = () => {
             ctx.drawImage(img, 0, 0, size, size);
             const imageData = ctx.getImageData(0, 0, size, size).data;
 
-            let pixels = [];
-            for (let i = 0; i < imageData.length; i += 4) {
-              const r = imageData[i];
-              const g = imageData[i + 1];
-              const b = imageData[i + 2];
-
-              const rNorm = r/255, gNorm = g/255, bNorm = b/255;
-              const maxC = Math.max(rNorm, gNorm, bNorm);
-              const minC = Math.min(rNorm, gNorm, bNorm);
-              const l = (maxC + minC) / 2;
-              let s = 0;
-              if (maxC !== minC) {
-                s = l > 0.5 ? (maxC - minC) / (2 - maxC - minC) : (maxC - minC) / (maxC + minC);
-              }
-
-              const chroma = s * (1 - Math.abs(2*l - 1));
-              pixels.push({ r, g, b, chroma, l, s });
-            }
-
-            pixels.sort((a, b) => b.chroma - a.chroma);
-
-            const topCount = Math.max(1, Math.floor(pixels.length * 0.15));
-            let topPixels = pixels.slice(0, topCount);
-
+            // We sample the center 50% of the image (50x50 region out of 100x100)
+            // This prevents background objects or fingers on the edges from skewing the result.
+            const centerStart = Math.floor(size * 0.25);
+            const centerEnd = Math.floor(size * 0.75);
             let totalR = 0, totalG = 0, totalB = 0;
-            for (const p of topPixels) {
-              totalR += p.r;
-              totalG += p.g;
-              totalB += p.b;
+            let pixelCount = 0;
+
+            for (let y = centerStart; y < centerEnd; y++) {
+              for (let x = centerStart; x < centerEnd; x++) {
+                const i = (y * size + x) * 4;
+                totalR += imageData[i];
+                totalG += imageData[i + 1];
+                totalB += imageData[i + 2];
+                pixelCount++;
+              }
             }
-            const avgR = totalR / topPixels.length;
-            const avgG = totalG / topPixels.length;
-            const avgB = totalB / topPixels.length;
+
+            const avgR = totalR / pixelCount;
+            const avgG = totalG / pixelCount;
+            const avgB = totalB / pixelCount;
 
             const r = avgR / 255, g = avgG / 255, b = avgB / 255;
             const max = Math.max(r, g, b), min = Math.min(r, g, b);
@@ -179,7 +166,9 @@ const MucusScanModal = () => {
             s = Math.round(s * 100);
             l = Math.round(l * 100);
 
-            let matched = MUCUS_COLORS[0];
+            console.log(`[MucusScan Debug] Center sampling (${pixelCount} px). Avg RGB: [${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)}], HSL: [${h}, ${s}%, ${l}%]`);
+
+            let matched = null;
 
             if (l <= 25) {
               matched = MUCUS_COLORS.find(c => c.id === 'black');
@@ -198,6 +187,20 @@ const MucusScanModal = () => {
                   break;
                 }
               }
+            }
+
+            if (!matched) {
+              console.log(`[MucusScan Debug] No strict match found. Defaulting to Unclear Detection.`);
+              matched = {
+                id: 'unknown',
+                label: 'Unclear Detection',
+                color: '#E2E8F0',
+                textColor: '#475569',
+                riskScore: 0,
+                severity: 'Unknown',
+                description: 'The color could not be clearly detected from the image. Lighting, shadows, or background may be affecting the result.',
+                advice: 'Please try taking another photo with better lighting, preferably against a white tissue.'
+              };
             }
 
             const result = {
