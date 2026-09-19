@@ -162,14 +162,15 @@
 }
 
 .scores-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .scores-grid {
+    grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-bottom: 1.5rem;
   }
