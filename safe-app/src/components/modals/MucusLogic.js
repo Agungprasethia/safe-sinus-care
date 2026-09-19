@@ -188,13 +188,13 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
             matched = MUCUS_COLORS.find(c => c.id === 'black');
           } else if (s <= 25 && l >= 55) {
             // Differentiation between white and clear based on translucency/opacity (stdDev)
-            if (stdDevL > 18) {
+            if (stdDevL > 10) {
               matched = MUCUS_COLORS.find(c => c.id === 'clear');
-            } else if (stdDevL < 12) {
+            } else if (stdDevL < 5) {
               matched = MUCUS_COLORS.find(c => c.id === 'white');
             } else {
               isGreyZone = true;
-              // Grey zone (12-18): Tie-breaker logic using userSelectedColor and questionnaireData
+              // Grey zone (5-10): Tie-breaker logic using userSelectedColor and questionnaireData
               let clearScore = 0;
               let whiteScore = 0;
               
