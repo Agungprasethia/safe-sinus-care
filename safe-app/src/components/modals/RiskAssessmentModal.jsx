@@ -78,6 +78,11 @@ const RiskAssessmentModal = () => {
   const totalQuestions = SYMPTOMS.length + LIFESTYLE_QUESTIONS.length + ENVIRONMENTAL.length + 1;
   const progressPercentage = (totalAnswered / totalQuestions) * 100;
 
+  const isStep1Complete = Object.keys(answers.symptoms).length === SYMPTOMS.length;
+  const isStep2Complete = Object.keys(answers.lifestyle).length === LIFESTYLE_QUESTIONS.length;
+  const isStep3Complete = Object.keys(answers.environmental).length === ENVIRONMENTAL.length;
+  const isStep4Complete = answers.mucusResult !== null;
+
   const handleSelectSymptom = (index, answer) => {
     setAnswers(prev => ({ ...prev, symptoms: { ...prev.symptoms, [index]: answer } }));
   };
@@ -304,7 +309,10 @@ const RiskAssessmentModal = () => {
               onClick={() => setStep(i + 1)}
               style={{ cursor: 'pointer' }}
             >
-              <div className="step-label">Step {i + 1} &rarr; {s}</div>
+              <div className="step-label">
+                <span className="step-num">Step {i + 1}</span>
+                <span className="step-desc"> &rarr; {s}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -344,6 +352,8 @@ const RiskAssessmentModal = () => {
               <button 
                 className="btn btn-primary" 
                 onClick={() => setStep(2)}
+                disabled={!isStep1Complete}
+                style={{ opacity: isStep1Complete ? 1 : 0.5, cursor: isStep1Complete ? 'pointer' : 'not-allowed' }}
               >
                 Next <ChevronRight size={20} />
               </button>
@@ -387,6 +397,8 @@ const RiskAssessmentModal = () => {
               <button 
                 className="btn btn-primary" 
                 onClick={() => setStep(3)}
+                disabled={!isStep2Complete}
+                style={{ opacity: isStep2Complete ? 1 : 0.5, cursor: isStep2Complete ? 'pointer' : 'not-allowed' }}
               >
                 Next <ChevronRight size={20} />
               </button>
@@ -430,6 +442,8 @@ const RiskAssessmentModal = () => {
               <button 
                 className="btn btn-primary" 
                 onClick={() => setStep(4)}
+                disabled={!isStep3Complete}
+                style={{ opacity: isStep3Complete ? 1 : 0.5, cursor: isStep3Complete ? 'pointer' : 'not-allowed' }}
               >
                 Next <ChevronRight size={20} />
               </button>
@@ -545,6 +559,8 @@ const RiskAssessmentModal = () => {
               <button 
                 className="btn btn-primary" 
                 onClick={() => setStep(5)}
+                disabled={!isStep4Complete}
+                style={{ opacity: isStep4Complete ? 1 : 0.5, cursor: isStep4Complete ? 'pointer' : 'not-allowed' }}
               >
                 See Results <ChevronRight size={20} />
               </button>

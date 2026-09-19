@@ -44,6 +44,10 @@
   line-height: 1.2;
 }
 
+.step-desc {
+  display: none;
+}
+
 @media (min-width: 480px) {
   .step-label {
     font-size: 0.8125rem;
@@ -53,6 +57,9 @@
 @media (min-width: 768px) {
   .step-label {
     font-size: 0.875rem;
+  }
+  .step-desc {
+    display: inline;
   }
 }
 
