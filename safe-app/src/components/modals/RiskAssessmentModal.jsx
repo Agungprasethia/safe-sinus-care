@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw } from 'lucide-react';
 import './RiskAssessmentModal.css';
+import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusScanModal';
 
 
 
@@ -60,12 +61,21 @@ const RiskAssessmentModal = () => {
   const [answers, setAnswers] = useState({
     symptoms: {},
     lifestyle: {},
-    environmental: {}
+    environmental: {},
+    mucusColor: null,
+    mucusImage: null,
+    mucusPreview: null,
+    mucusResult: null
   });
+  const [isScanningMucus, setIsScanningMucus] = useState(false);
+  const [mucusScanError, setMucusScanError] = useState(null);
 
-  const STEPS = ["Symptoms", "Lifestyle", "Environment", "Results"];
-  const totalAnswered = Object.keys(answers.symptoms).length + Object.keys(answers.lifestyle).length + Object.keys(answers.environmental).length;
-  const totalQuestions = SYMPTOMS.length + LIFESTYLE_QUESTIONS.length + ENVIRONMENTAL.length;
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+
+  const STEPS = ["Symptoms", "Lifestyle", "Environment", "Mucus Scan", "Results"];
+  const totalAnswered = Object.keys(answers.symptoms).length + Object.keys(answers.lifestyle).length + Object.keys(answers.environmental).length + (answers.mucusResult ? 1 : 0);
+  const totalQuestions = SYMPTOMS.length + LIFESTYLE_QUESTIONS.length + ENVIRONMENTAL.length + 1;
   const progressPercentage = (totalAnswered / totalQuestions) * 100;
 
   const handleSelectSymptom = (index, answer) => {
@@ -110,6 +120,19 @@ const RiskAssessmentModal = () => {
     return Math.round((total / (ENVIRONMENTAL.length * 4)) * 100);
   };
 
+  const calcMucusScore = () => {
+    if (!answers.mucusResult) return 0;
+    
+    // Prevent double counting symptom severity:
+    // If the color was decided in the grey zone (where symptoms might have influenced the result),
+    // fallback to using the manually selected color's risk score.
+    const riskScoreToUse = answers.mucusResult.isGreyZone && answers.mucusColor
+      ? answers.mucusColor.riskScore
+      : answers.mucusResult.detectedColor.riskScore;
+      
+    return Math.round((riskScoreToUse / 4) * 100);
+  };
+
   const getScoreLabel = (score) => {
     if (score <= 25) return { label: 'Low', cls: 'success' };
     if (score <= 55) return { label: 'Moderate', cls: 'warning' };
@@ -126,6 +149,8 @@ const RiskAssessmentModal = () => {
 
   const calculateRisk = () => {
     const scores = [calcSymptomsScore(), calcLifestyleScore(), calcEnvScore()];
+    if (answers.mucusResult) scores.push(calcMucusScore());
+    
     const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
     if (avg <= 25) return "Low Risk";
     if (avg <= 55) return "Moderate Risk";
@@ -135,6 +160,13 @@ const RiskAssessmentModal = () => {
   const saveAssessment = () => {
     const riskLevel = calculateRisk();
     const now = new Date();
+    let finalMucusLabel = null;
+    if (answers.mucusResult) {
+      finalMucusLabel = answers.mucusResult.isGreyZone && answers.mucusColor 
+        ? answers.mucusColor.label 
+        : answers.mucusResult.detectedColor.label;
+    }
+    
     const newEntry = {
       id: Date.now(),
       date: now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -143,8 +175,10 @@ const RiskAssessmentModal = () => {
       scores: {
         symptoms: calcSymptomsScore(),
         lifestyle: calcLifestyleScore(),
-        environmental: calcEnvScore()
-      }
+        environmental: calcEnvScore(),
+        mucus: calcMucusScore()
+      },
+      mucusColorLabel: finalMucusLabel
     };
 
     const existingHistory = JSON.parse(localStorage.getItem('sinus_assessment_history') || '[]');
@@ -158,6 +192,7 @@ const RiskAssessmentModal = () => {
     const sScore = calcSymptomsScore();
     const lScore = calcLifestyleScore();
     const eScore = calcEnvScore();
+    const mScore = calcMucusScore();
     const risk = calculateRisk();
     const now = new Date();
 
@@ -170,6 +205,12 @@ const RiskAssessmentModal = () => {
     report += `Symptoms Score:      ${sScore}% (${getScoreLabel(sScore).label})\n`;
     report += `Lifestyle Score:     ${lScore}% (${getScoreLabel(lScore).label})\n`;
     report += `Environmental Score: ${eScore}% (${getScoreLabel(eScore).label})\n`;
+    if (answers.mucusResult) {
+      const finalMucusLabel = answers.mucusResult.isGreyZone && answers.mucusColor 
+        ? answers.mucusColor.label 
+        : answers.mucusResult.detectedColor.label;
+      report += `Mucus Scan Score:    ${mScore}% (${finalMucusLabel})\n`;
+    }
     report += `\n--- Symptom Answers ---\n`;
     SYMPTOMS.forEach((s, i) => {
       report += `  ${s}: ${answers.symptoms[i] || 'Not answered'}\n`;
@@ -198,15 +239,58 @@ const RiskAssessmentModal = () => {
 
   const resetAssessment = () => {
     setStep(1);
-    setAnswers({ symptoms: {}, lifestyle: {}, environmental: {} });
+    setAnswers({ 
+      symptoms: {}, 
+      lifestyle: {}, 
+      environmental: {},
+      mucusColor: null,
+      mucusImage: null,
+      mucusPreview: null,
+      mucusResult: null
+    });
   };
 
   const symptomsScore = calcSymptomsScore();
   const lifestyleScore = calcLifestyleScore();
   const envScore = calcEnvScore();
+  const mucusScore = calcMucusScore();
   const symptomsLabel = getScoreLabel(symptomsScore);
   const lifestyleLabel = getScoreLabel(lifestyleScore);
   const envLabel = getScoreLabel(envScore);
+  const mucusLabel = getScoreLabel(mucusScore);
+
+  const handleMucusUpload = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setMucusScanError('Please upload a valid image file (JPG, PNG, etc.).');
+      return;
+    }
+    setAnswers(prev => ({ 
+      ...prev, 
+      mucusImage: file,
+      mucusPreview: URL.createObjectURL(file),
+      mucusResult: null
+    }));
+    setMucusScanError(null);
+  };
+
+  const handleScanMucus = async () => {
+    if (!answers.mucusColor || !answers.mucusImage) {
+      setMucusScanError('Please select color and upload image first.');
+      return;
+    }
+    setMucusScanError(null);
+    setIsScanningMucus(true);
+    
+    try {
+      const result = await analyzeMucusColorImage(answers.mucusImage, answers.mucusColor, { symptoms: answers.symptoms });
+      setAnswers(prev => ({ ...prev, mucusResult: result }));
+    } catch (err) {
+      setMucusScanError(err.message || 'Scan failed.');
+    } finally {
+      setIsScanningMucus(false);
+    }
+  };
 
   return (
     <div className="risk-modal">
@@ -347,7 +431,7 @@ const RiskAssessmentModal = () => {
                 className="btn btn-primary" 
                 onClick={() => setStep(4)}
               >
-                See Results <ChevronRight size={20} />
+                Next <ChevronRight size={20} />
               </button>
             </div>
             
@@ -359,6 +443,116 @@ const RiskAssessmentModal = () => {
         )}
 
         {step === 4 && (
+          <div className="question-slide animate-slide-in">
+            <h2 className="slide-title">Mucus Color Scan</h2>
+            <p className="slide-subtitle">Add your mucus color analysis to improve risk assessment accuracy.</p>
+            
+            {mucusScanError && (
+              <div className="ms-error-banner" style={{margin: '0 0 1rem 0'}}>
+                <AlertTriangle size={18} />
+                <p>{mucusScanError}</p>
+                <button className="ms-error-close" onClick={() => setMucusScanError(null)}>
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
+            <div className="card" style={{padding: '1.5rem', marginBottom: '1.5rem'}}>
+              <h3>1. Select Mucus Color</h3>
+              <div className="options-grid" style={{marginTop: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))'}}>
+                {MUCUS_COLORS.map(mc => (
+                  <div 
+                    key={mc.id}
+                    className={`selectable-card ${answers.mucusColor?.id === mc.id ? 'selected' : ''}`}
+                    onClick={() => setAnswers(prev => ({...prev, mucusColor: mc, mucusResult: null}))}
+                    style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '1rem'}}
+                  >
+                    <span style={{
+                      width: '32px', height: '32px', borderRadius: '50%', backgroundColor: mc.color, 
+                      border: mc.id === 'clear' ? '1px solid #cbd5e1' : 'none'
+                    }} />
+                    <span style={{fontSize: '0.9rem', textAlign: 'center'}}>{mc.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card" style={{padding: '1.5rem', marginBottom: '1.5rem'}}>
+              <h3>2. Upload Mucus Photo</h3>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleMucusUpload(e.target.files[0])}
+                style={{display:'none'}}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => handleMucusUpload(e.target.files[0])}
+                style={{display:'none'}}
+              />
+
+              {!answers.mucusPreview ? (
+                <div style={{marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'center'}}>
+                  <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
+                    <Upload size={18} /> Choose File
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => cameraInputRef.current?.click()}>
+                    <Camera size={18} /> Take Photo
+                  </button>
+                </div>
+              ) : (
+                <div style={{marginTop: '1rem', textAlign: 'center'}}>
+                  <img src={answers.mucusPreview} alt="Mucus sample" style={{maxWidth: '100%', maxHeight: '200px', borderRadius: '8px'}} />
+                  <div style={{marginTop: '1rem'}}>
+                    <button className="btn btn-outline" onClick={() => setAnswers(prev => ({...prev, mucusPreview: null, mucusImage: null, mucusResult: null}))}>
+                      <RefreshCw size={16} /> Change Photo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {answers.mucusResult ? (
+               <div className="card" style={{padding: '1.5rem', marginBottom: '1.5rem', backgroundColor: 'var(--card-hover)'}}>
+                 <h3 style={{display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success)'}}>
+                   <CheckCircle2 size={20} /> Scan Complete
+                 </h3>
+                 <p style={{marginTop: '0.5rem'}}>Detected Color: <strong>{answers.mucusResult.detectedColor.label}</strong></p>
+                 <p style={{fontSize: '0.9rem', color: 'var(--text-light)', marginTop: '0.25rem'}}>{answers.mucusResult.detectedColor.description}</p>
+               </div>
+            ) : (
+              <div style={{display: 'flex', justifyContent: 'center', marginBottom: '1.5rem'}}>
+                <button 
+                  className={`btn btn-primary btn-lg ${(!answers.mucusColor || !answers.mucusImage || isScanningMucus) ? 'disabled' : ''}`}
+                  onClick={handleScanMucus}
+                  disabled={!answers.mucusColor || !answers.mucusImage || isScanningMucus}
+                  style={{width: '100%', maxWidth: '300px'}}
+                >
+                  {isScanningMucus ? 'Analyzing...' : <><Search size={20} /> Scan Mucus Color</>}
+                </button>
+              </div>
+            )}
+
+            <div className="slide-actions">
+              <button className="btn btn-outline" onClick={() => setStep(3)}>
+                <ChevronLeft size={20} /> Previous
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setStep(5)}
+              >
+                See Results <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
           <div className="results-slide animate-fade-in">
             <h2 className="text-center">Your Sinus Risk Assessment</h2>
             
@@ -394,6 +588,15 @@ const RiskAssessmentModal = () => {
                   </div>
                   <div className="progress-container"><div className="progress-bar" style={{width: `${envScore}%`, backgroundColor: getScoreColor(envScore)}}></div></div>
                 </div>
+                {answers.mucusResult && (
+                  <div className="score-card card">
+                    <div className="score-header">
+                      <h4>Mucus Score</h4>
+                      <span className={`score-badge ${mucusLabel.cls}`}>{mucusLabel.label}</span>
+                    </div>
+                    <div className="progress-container"><div className="progress-bar" style={{width: `${mucusScore}%`, backgroundColor: getScoreColor(mucusScore)}}></div></div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ChevronRight, Activity, Clock } from 'lucide-react';
+import { Calendar, ChevronRight, Activity, Clock, ChevronDown } from 'lucide-react';
 import './HistoryScanModal.css';
 
 const HistoryScanModal = () => {
   const [historyData, setHistoryData] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('sinus_assessment_history');
@@ -66,11 +67,39 @@ const HistoryScanModal = () => {
                     <span className="score-label">Environment</span>
                     <div className="progress-container"><div className="progress-bar" style={{ width: `${entry.scores.environmental}%` }}></div></div>
                   </div>
+                  <div className="score-item">
+                    <span className="score-label">Mucus Score</span>
+                    {entry.scores.mucus !== undefined ? (
+                      <div className="progress-container"><div className="progress-bar" style={{ width: `${entry.scores.mucus}%`, backgroundColor: 'var(--primary)' }}></div></div>
+                    ) : (
+                      <div className="progress-container" style={{ backgroundColor: 'transparent', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-light)', lineHeight: '1' }}>Not assessed</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {expandedId === entry.id && (
+                  <div className="details-section animate-fade-in" style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', fontSize: '0.9rem' }}>
+                    <h4 style={{ marginBottom: '0.5rem', color: 'var(--text-main)' }}>Assessment Details</h4>
+                    <p style={{ margin: '0.25rem 0' }}><strong>Symptoms Score:</strong> {entry.scores.symptoms}%</p>
+                    <p style={{ margin: '0.25rem 0' }}><strong>Lifestyle Score:</strong> {entry.scores.lifestyle}%</p>
+                    <p style={{ margin: '0.25rem 0' }}><strong>Environment Score:</strong> {entry.scores.environmental}%</p>
+                    {entry.scores.mucus !== undefined ? (
+                      <p style={{ margin: '0.25rem 0' }}><strong>Mucus Scan Score:</strong> {entry.scores.mucus}% {entry.mucusColorLabel ? `(Detected: ${entry.mucusColorLabel})` : ''}</p>
+                    ) : (
+                      <p style={{ margin: '0.25rem 0' }}><strong>Mucus Scan Score:</strong> Not assessed</p>
+                    )}
+                  </div>
+                )}
+
                 <div className="timeline-card-footer">
-                  <button className="btn btn-outline btn-sm">
-                    View Details <ChevronRight size={16} />
+                  <button 
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                  >
+                    {expandedId === entry.id ? 'Hide Details' : 'View Details'} 
+                    {expandedId === entry.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </button>
                 </div>
               </div>
