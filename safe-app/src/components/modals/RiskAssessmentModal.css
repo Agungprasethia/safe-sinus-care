@@ -140,6 +140,7 @@
   color: var(--text-light);
   text-align: right;
   margin-top: 0.5rem;
+  padding-right: 2rem; /* Prevent overlap with modal close button */
 }
 
 @media (min-width: 768px) {
@@ -152,6 +153,7 @@
 .risk-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal scroll */
   padding: 0.5rem 0.25rem;
   -webkit-overflow-scrolling: touch;
 }
@@ -361,13 +363,12 @@
 
 .scores-breakdown {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.75rem;
 }
 
 @media (min-width: 640px) {
   .scores-breakdown {
-    grid-template-columns: 1fr 1fr;
     gap: 1rem;
   }
 }
@@ -384,8 +385,10 @@
 
 .score-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 0.35rem;
   margin-bottom: 0.5rem;
 }
 
