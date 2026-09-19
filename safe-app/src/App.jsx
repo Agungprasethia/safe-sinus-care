@@ -12,7 +12,6 @@ import ArticlesModal from './components/modals/ArticlesModal';
 import FoodGuideModal from './components/modals/FoodGuideModal';
 import WorkoutModal from './components/modals/WorkoutModal';
 import BreathingModal from './components/modals/BreathingModal';
-import MucusScanModal from './components/modals/MucusScanModal';
 import HospitalFinderModal from './components/modals/HospitalFinderModal';
 
 function App() {
@@ -33,7 +32,6 @@ function App() {
       case 'chatbot': return <ChatbotModal />;
       case 'workout': return <WorkoutModal />;
       case 'breathing': return <BreathingModal />;
-      case 'mucus': return <MucusScanModal />;
       case 'hospital': return <HospitalFinderModal />;
       default: return null;
     }
