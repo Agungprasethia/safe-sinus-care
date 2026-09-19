@@ -299,30 +299,34 @@ const RiskAssessmentModal = () => {
 
   return (
     <div className="risk-modal">
-      {/* Top Progress Bar */}
-      <div className="risk-header">
-        <div className="steps-indicator">
-          {STEPS.map((s, i) => (
-            <div 
-              key={i} 
-              className={`step-item ${step > i ? 'active' : ''} ${step === i + 1 ? 'current' : ''}`}
-              onClick={() => setStep(i + 1)}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="step-label">
-                <span className="step-num">Step {i + 1}</span>
-                <span className="step-desc"> &rarr; {s}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Progress bar at top */}
+      <div className="risk-progress-top">
         <div className="progress-container">
           <div className="progress-bar" style={{ width: `${progressPercentage}%` }}></div>
         </div>
         <div className="progress-text">{Math.round(progressPercentage)}% Complete</div>
       </div>
 
-      <div className="risk-content">
+      {/* Sidebar + Content Layout */}
+      <div className="risk-body">
+        {/* Sidebar Steps */}
+        <div className="risk-sidebar">
+          <div className="steps-indicator">
+            {STEPS.map((s, i) => (
+              <div 
+                key={i} 
+                className={`step-item ${step > i ? 'completed' : ''} ${step === i + 1 ? 'current' : ''}`}
+                onClick={() => setStep(i + 1)}
+              >
+                <div className="step-number">{i + 1}</div>
+                <div className="step-label">{s}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="risk-content">
         {step === 1 && (
           <div className="question-slide animate-slide-in">
             <h2 className="slide-title">Symptom Assessment</h2>
@@ -633,6 +637,7 @@ const RiskAssessmentModal = () => {
           </div>
         )}
       </div>
+      </div>{/* end risk-body */}
     </div>
   );
 };
