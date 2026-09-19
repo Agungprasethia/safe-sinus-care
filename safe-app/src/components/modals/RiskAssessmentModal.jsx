@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw } from 'lucide-react';
 import './RiskAssessmentModal.css';
-import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusScanModal';
+import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusLogic';
 
 
 
