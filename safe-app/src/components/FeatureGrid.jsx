@@ -6,7 +6,7 @@ const features = [
   {
     id: 'risk',
     title: 'CHECK MY RISK',
-    description: 'Assess sinus symptoms, lifestyle factors, and environmental risk factors.',
+    description: 'Assess sinus symptoms, lifestyle factors, environmental risk factors, and mucus color scan.',
     icon: <Stethoscope size={32} />
   },
   {
