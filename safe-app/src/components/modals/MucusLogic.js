@@ -184,9 +184,28 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           let matched = null;
           let isGreyZone = false;
 
+          // 1. Black / Dark check first
           if (l <= 25) {
             matched = MUCUS_COLORS.find(c => c.id === 'black');
-          } else if (s <= 25 && l >= 45) {
+          } 
+          
+          // 2. HUE-based classification for distinct colors (Green, Yellow, Brown/Red)
+          if (!matched) {
+            for (const mc of MUCUS_COLORS) {
+              if (!mc.hueRange) continue; // Skip Clear, White, and Black (already checked)
+              const inHue = (h >= mc.hueRange[0] && h <= mc.hueRange[1]) ||
+                            (mc.altHueRange && h >= mc.altHueRange[0] && h <= mc.altHueRange[1]);
+              if (inHue && s >= mc.satRange[0] && s <= mc.satRange[1] &&
+                  l >= mc.lightRange[0] && l <= mc.lightRange[1]) {
+                matched = mc;
+                break;
+              }
+            }
+          }
+
+          // 3. Achromatic / Near-White classification (Clear vs White)
+          // ONLY if it didn't lean into any specific distinct color hue
+          if (!matched && s <= 25 && l >= 45) {
             // === Clear vs White Mucus Detection ===
             // Transparent (clear) liquids on tissue often create sharp, bright specular highlights (glares).
             // Opaque (white) liquids scatter light, resulting in softer shading and flatter highlights.
@@ -233,17 +252,6 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
                 matched = MUCUS_COLORS.find(c => c.id === 'white');
               } else {
                 matched = MUCUS_COLORS.find(c => c.id === 'white'); // fallback
-              }
-            }
-          } else {
-            for (const mc of MUCUS_COLORS) {
-              if (!mc.hueRange) continue;
-              const inHue = (h >= mc.hueRange[0] && h <= mc.hueRange[1]) ||
-                            (mc.altHueRange && h >= mc.altHueRange[0] && h <= mc.altHueRange[1]);
-              if (inHue && s >= mc.satRange[0] && s <= mc.satRange[1] &&
-                  l >= mc.lightRange[0] && l <= mc.lightRange[1]) {
-                matched = mc;
-                break;
               }
             }
           }
