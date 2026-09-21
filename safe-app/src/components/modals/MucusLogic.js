@@ -258,7 +258,32 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           const avgB = totalB / count;
           const [h, s, l] = rgbToHsl(avgR, avgG, avgB);
           
-          console.log(`[MucusScan v9.0] Center HSL: [${h},${s}%,${l}%], BloodRatio: ${(bloodRatio*100).toFixed(2)}%, VarianceOfStdDev: ${varianceOfStdDev.toFixed(2)}`);
+          // ==========================================
+          // DEBUGGING KONKRET (Sesuai Permintaan User)
+          // ==========================================
+          console.group('%c🔍 [SAFE DEBUG] Hasil Analisis Lendir', 'color: #0ea5e9; font-size: 14px; font-weight: bold;');
+          console.log(`1. Ukuran Image Processing: ${size}x${size} (Setelah crop center square)`);
+          console.log(`2. Area Crop 40% Tengah: X(${startX} to ${endX}), Y(${startY} to ${endY})`);
+          console.log(`3. Rata-rata Warna Center Crop: RGB(${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)}) | HSL(${h}, ${s}%, ${l}%)`);
+          console.log(`4. Porsi Piksel Darah (bloodRatio): ${(bloodRatio * 100).toFixed(2)}%`);
+          if (potentialBloodMatch) {
+             console.log(`   -> Ditahan sebagai potentialBloodMatch (Confidence: ${potentialBloodConfidence})`);
+          }
+          
+          console.log('5. Hasil StdDevL di 9 Sub-Region (Achromatic Check):');
+          const gridStr = [];
+          for (let i = 0; i < 9; i += 3) {
+             gridStr.push(`[ ${regionStdDevs[i].toFixed(1)} | ${regionStdDevs[i+1].toFixed(1)} | ${regionStdDevs[i+2].toFixed(1)} ]`);
+          }
+          console.log(gridStr.join('\n'));
+          
+          const maxStdDev = Math.max(...regionStdDevs);
+          console.log(`6. Metrics Variance:`);
+          console.log(`   - Mean of StdDevL: ${meanStdDev.toFixed(2)}`);
+          console.log(`   - Variance of StdDevL: ${varianceOfStdDev.toFixed(2)} (Threshold: <15 White, >25 Clear)`);
+          console.log(`   - Max StdDevL: ${maxStdDev.toFixed(2)}`);
+          console.groupEnd();
+          // ==========================================
 
           let matched = null;
           let isGreyZone = false;
