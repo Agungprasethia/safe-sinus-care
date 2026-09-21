@@ -206,31 +206,48 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           // 3. Achromatic / Near-White classification (Clear vs White)
           // ONLY if it didn't lean into any specific distinct color hue
           if (!matched && s <= 25 && l >= 45) {
-            // === Clear vs White: Simple 3-flag approach ===
-            // White mucus is VISIBLE (opaque, thick, cloudy) → it MUST show multiple clear signs.
-            // Clear mucus is INVISIBLE (transparent) → photo looks like "just tissue."
-            // If we can't strongly prove White → it's Clear.
+            // === Clear vs White Detection v7 ===
+            // Strategy:
+            //   1. Detect CLEAR signals: specular reflections (glass-like), high transparency
+            //   2. Detect WHITE signals: opaque substance (low L, high texture, few bright pixels)
+            //   3. If neither → default to Clear ("no visible substance = clear/normal")
 
-            // Count bright achromatic pixels (L > 80, S < 10) 
-            let brightAchromaticCount = 0;
+            // --- Analyze per-pixel distributions ---
+            let brightAchromaticCount = 0;  // pixels that look like "bare tissue" (bright + no color)
+            let specularCount = 0;          // pixels that are extremely bright (reflection/glare)
+            let darkPixelCount = 0;         // pixels that are noticeably darker (opaque substance)
+            
             for (let i = 0; i < lightnessPixels.length; i++) {
-              if (lightnessPixels[i] > 80 && saturationPixels[i] < 10) {
-                brightAchromaticCount++;
-              }
+              const pxL = lightnessPixels[i];
+              const pxS = saturationPixels[i];
+              
+              if (pxL > 80 && pxS < 10) brightAchromaticCount++;  // tissue-like
+              if (pxL > 95) specularCount++;                       // glass-like reflection
+              if (pxL < 70 && pxS < 15) darkPixelCount++;          // darker opaque area
             }
+            
             const brightPct = (brightAchromaticCount / pixelCount) * 100;
+            const specularPct = (specularCount / pixelCount) * 100;
+            const darkPct = (darkPixelCount / pixelCount) * 100;
 
-            // 3 boolean flags — each indicates presence of opaque white substance
-            const flagLowBrightness = l <= 75;       // opaque blob lowers overall brightness
-            const flagHighTexture   = stdDevL >= 12;  // opaque blob creates 3D shadows/highlights
-            const flagFewBright     = brightPct <= 35; // opaque blob blocks tissue brightness
+            // --- Clear signals ---
+            const hasClearReflections = specularPct >= 1;  // even 1% specular = glass/wet surface
+            const mostlyTissue = brightPct >= 50;          // >50% looks like bare bright tissue
 
+            // --- White signals (need 2 of 3) ---
+            const flagLowBrightness = l <= 75;
+            const flagHighTexture = stdDevL >= 12;
+            const flagFewBright = brightPct <= 35;
             const whiteFlags = [flagLowBrightness, flagHighTexture, flagFewBright].filter(Boolean).length;
 
-            console.log(`[MucusScan Clear/White] L=${l}, stdDevL=${stdDevL.toFixed(2)}, S=${s}, brightPct=${brightPct.toFixed(1)}% -> flags: lowL=${flagLowBrightness}, hiTex=${flagHighTexture}, fewBright=${flagFewBright} (${whiteFlags}/3)`);
+            console.log(`[MucusScan v7 Clear/White] L=${l}, stdDev=${stdDevL.toFixed(1)}, S=${s} | bright=${brightPct.toFixed(0)}%, specular=${specularPct.toFixed(1)}%, dark=${darkPct.toFixed(0)}% | clearSignals: reflect=${hasClearReflections}, tissue=${mostlyTissue} | whiteFlags=${whiteFlags}/3`);
 
-            if (whiteFlags >= 2) {
-              // Strong White signal — but still allow user override
+            // Decision tree:
+            if (hasClearReflections && mostlyTissue) {
+              // Glass-like reflections + mostly tissue visible = definitely Clear
+              matched = MUCUS_COLORS.find(c => c.id === 'clear');
+            } else if (whiteFlags >= 2) {
+              // Strong White evidence (2+ flags)
               if (userSelectedColor && userSelectedColor.id === 'clear') {
                 isGreyZone = true;
                 matched = MUCUS_COLORS.find(c => c.id === 'clear');
@@ -238,7 +255,7 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
                 matched = MUCUS_COLORS.find(c => c.id === 'white');
               }
             } else {
-              // Not enough White evidence → Clear (default)
+              // No strong color, no strong White evidence → "no visible substance" → Clear
               matched = MUCUS_COLORS.find(c => c.id === 'clear');
             }
           }
