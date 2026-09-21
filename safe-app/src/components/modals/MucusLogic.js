@@ -100,7 +100,7 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
         try {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          const size = 150; // Use 150x150 for processing
+          const size = 400; // Use 400x400 for processing (increased for better detail retention)
           canvas.width = size;
           canvas.height = size;
           
