@@ -238,10 +238,10 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
 
             console.log(`[MucusScan Clear/White] L=${l}, stdDevL=${stdDevL.toFixed(2)}, S=${s} -> Evidence: clear=${clearEvidence}, white=${whiteEvidence}`);
 
-            // Strict threshold to avoid false positives (must beat other by 2)
-            if (clearEvidence >= 3 && clearEvidence >= whiteEvidence + 2) {
+            // Determine match: simple majority with minimum evidence of 3
+            if (clearEvidence >= 3 && clearEvidence > whiteEvidence) {
               matched = MUCUS_COLORS.find(c => c.id === 'clear');
-            } else if (whiteEvidence >= 3 && whiteEvidence >= clearEvidence + 2) {
+            } else if (whiteEvidence >= 3 && whiteEvidence > clearEvidence) {
               matched = MUCUS_COLORS.find(c => c.id === 'white');
             } else {
               // Grey zone: Ambiguous lighting or texture
