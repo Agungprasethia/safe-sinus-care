@@ -206,83 +206,63 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           // 3. Achromatic / Near-White classification (Clear vs White)
           // ONLY if it didn't lean into any specific distinct color hue
           if (!matched && s <= 25 && l >= 45) {
-            // === Clear vs White Mucus Detection ===
-            // Clear mucus is transparent → tissue shows through → many bright, low-saturation pixels
-            // White mucus is opaque → blocks tissue → fewer ultra-bright pixels, more mid-range
-
-            let clearEvidence = 0;
+            // === Clear vs White: "Prove it's White, else it's Clear" ===
+            // White mucus is OPAQUE → it lowers brightness, adds 3D texture, slight cloudiness
+            // Clear mucus is TRANSPARENT → tissue looks nearly unchanged, almost invisible
+            // Strategy: collect evidence FOR White. If insufficient → default to Clear.
+            
             let whiteEvidence = 0;
 
-            // Signal 1: Average Lightness (primary, weight: 3)
-            if (l >= 85) clearEvidence += 3;
-            else if (l >= 78) clearEvidence += 1;
-            else if (l <= 68) whiteEvidence += 3;
-            else if (l <= 73) whiteEvidence += 1;
+            // Signal 1: Lightness drop (opaque substance lowers avg brightness vs bare tissue)
+            if (l <= 70) whiteEvidence += 3;
+            else if (l <= 75) whiteEvidence += 2;
+            else if (l <= 78) whiteEvidence += 1;
 
-            // Signal 2: StdDev of Lightness (weight: 2)
-            // Clear = more uniform (tissue showing through). White = 3D texture with shadows
-            if (stdDevL <= 5) clearEvidence += 2;
-            else if (stdDevL <= 9) clearEvidence += 1;
-            else if (stdDevL >= 16) whiteEvidence += 2;
-            else if (stdDevL >= 12) whiteEvidence += 1;
+            // Signal 2: High texture variance (3D opaque blob creates shadows & highlights)
+            if (stdDevL >= 15) whiteEvidence += 3;
+            else if (stdDevL >= 12) whiteEvidence += 2;
+            else if (stdDevL >= 9) whiteEvidence += 1;
 
-            // Signal 3: Average Saturation (weight: 1)
-            if (s <= 5) clearEvidence += 1;
-            else if (s >= 12) whiteEvidence += 1;
-
-            // Signal 4: Percentage of bright achromatic pixels (NEW, weight: 2)
-            // Count pixels that are both very bright (L > 80) and very low saturation (S < 10)
-            // Clear mucus → tissue visible → MANY such pixels
-            // White mucus → opaque surface → FEWER such pixels
+            // Signal 3: Fewer bright-achromatic pixels (opaque blob blocks tissue brightness)
             let brightAchromaticCount = 0;
             for (let i = 0; i < lightnessPixels.length; i++) {
-              if (lightnessPixels[i] > 80 && saturationPixels[i] < 10) {
+              if (lightnessPixels[i] > 82 && saturationPixels[i] < 8) {
                 brightAchromaticCount++;
               }
             }
             const brightAchromaticPct = (brightAchromaticCount / pixelCount) * 100;
-            
-            if (brightAchromaticPct >= 55) clearEvidence += 2;
-            else if (brightAchromaticPct >= 40) clearEvidence += 1;
-            else if (brightAchromaticPct <= 20) whiteEvidence += 2;
+
+            if (brightAchromaticPct <= 15) whiteEvidence += 2;
             else if (brightAchromaticPct <= 30) whiteEvidence += 1;
 
-            console.log(`[MucusScan Clear/White] L=${l}, stdDevL=${stdDevL.toFixed(2)}, S=${s}, brightAchromatic=${brightAchromaticPct.toFixed(1)}% -> Evidence: clear=${clearEvidence}, white=${whiteEvidence}`);
+            console.log(`[MucusScan Clear/White] L=${l}, stdDevL=${stdDevL.toFixed(2)}, S=${s}, brightAchromatic=${brightAchromaticPct.toFixed(1)}% -> whiteEvidence=${whiteEvidence}`);
 
-            // Determine match: simple majority with minimum evidence of 3
-            if (clearEvidence >= 3 && clearEvidence > whiteEvidence) {
-              matched = MUCUS_COLORS.find(c => c.id === 'clear');
-            } else if (whiteEvidence >= 3 && whiteEvidence > clearEvidence) {
+            // Strong evidence for White (>= 5 points) → confidently White
+            if (whiteEvidence >= 5) {
               matched = MUCUS_COLORS.find(c => c.id === 'white');
-            } else {
-              // Grey zone: Ambiguous lighting or texture
+            }
+            // Moderate evidence (3-4 points) → grey zone, use tiebreakers
+            else if (whiteEvidence >= 3) {
               isGreyZone = true;
-              let clearScore = clearEvidence;
-              let whiteScore = whiteEvidence;
-              
               if (userSelectedColor) {
-                if (userSelectedColor.id === 'clear') clearScore += 2;
-                if (userSelectedColor.id === 'white') whiteScore += 2;
+                if (userSelectedColor.id === 'white') {
+                  matched = MUCUS_COLORS.find(c => c.id === 'white');
+                } else if (userSelectedColor.id === 'clear') {
+                  matched = MUCUS_COLORS.find(c => c.id === 'clear');
+                }
               }
-              
-              if (questionnaireData) {
-                 const symptoms = questionnaireData.symptoms || {};
-                 const hasSevereSymptoms = Object.values(symptoms).some(v => v === 'Very Often' || v === 'Often');
-                 if (hasSevereSymptoms) {
-                    whiteScore += 1;
-                 } else {
-                    clearScore += 1;
-                 }
+              if (!matched && questionnaireData) {
+                const symptoms = questionnaireData.symptoms || {};
+                const hasSevereSymptoms = Object.values(symptoms).some(v => v === 'Very Often' || v === 'Often');
+                matched = MUCUS_COLORS.find(c => c.id === (hasSevereSymptoms ? 'white' : 'clear'));
               }
-              
-              if (clearScore > whiteScore) {
-                matched = MUCUS_COLORS.find(c => c.id === 'clear');
-              } else if (whiteScore > clearScore) {
-                matched = MUCUS_COLORS.find(c => c.id === 'white');
-              } else {
-                // Tie-breaker: if image is bright overall, default to Clear
-                matched = MUCUS_COLORS.find(c => c.id === (l >= 78 ? 'clear' : 'white'));
+              if (!matched) {
+                matched = MUCUS_COLORS.find(c => c.id === 'clear'); // grey-zone default: Clear
               }
+            }
+            // Weak/no evidence for White (< 3) → it's Clear
+            else {
+              matched = MUCUS_COLORS.find(c => c.id === 'clear');
             }
           }
 
