@@ -103,7 +103,13 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           const size = 150; // Use 150x150 for processing
           canvas.width = size;
           canvas.height = size;
-          ctx.drawImage(img, 0, 0, size, size);
+          
+          // Crop the center square of the original image to prevent aspect ratio distortion
+          const minDim = Math.min(img.width, img.height);
+          const sx = (img.width - minDim) / 2;
+          const sy = (img.height - minDim) / 2;
+          
+          ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
           const imageData = ctx.getImageData(0, 0, size, size).data;
 
           // Helper to convert RGB to HSL
@@ -299,18 +305,18 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
              
              // White mucus is generally opaque, producing uniform regions (lower varianceOfStdDev).
              // Clear mucus allows background to show through unevenly, or has strong specular highlights (higher varianceOfStdDev).
-             if (varianceOfStdDev > 35) {
+             if (varianceOfStdDev > 25) {
                  // High variance between regions -> uneven -> Clear (Sinyal jelas)
                  achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
-                 achromaticConfidence = varianceOfStdDev > 45 ? 'Medium' : 'Low';
+                 achromaticConfidence = varianceOfStdDev > 40 ? 'Medium' : 'Low';
                  isClearSignal = true;
-             } else if (varianceOfStdDev < 20) {
+             } else if (varianceOfStdDev < 15) {
                  // Low variance between regions -> opaque uniform -> White (Sinyal jelas)
                  achromaticMatch = MUCUS_COLORS.find(c => c.id === 'white');
-                 achromaticConfidence = varianceOfStdDev < 12 ? 'High' : 'Medium';
+                 achromaticConfidence = varianceOfStdDev < 8 ? 'High' : 'Medium';
                  isClearSignal = true;
              } else {
-                 // 20 - 35 is ambiguous (Tidak ada sinyal jelas)
+                 // 15 - 25 is ambiguous (Tidak ada sinyal jelas)
                  // Default fallback untuk area abu-abu ini
                  achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
                  achromaticConfidence = 'Low';
@@ -318,7 +324,7 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
              }
              
              // Cek Grey Area user selection
-             if (varianceOfStdDev >= 20 && varianceOfStdDev <= 35) {
+             if (varianceOfStdDev >= 15 && varianceOfStdDev <= 25) {
                  if (userSelectedColor && (userSelectedColor.id === 'clear' || userSelectedColor.id === 'white')) {
                      achromaticMatch = MUCUS_COLORS.find(c => c.id === userSelectedColor.id);
                      isGreyZone = true;
