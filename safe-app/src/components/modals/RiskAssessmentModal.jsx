@@ -95,75 +95,70 @@ const RiskAssessmentModal = () => {
     setAnswers(prev => ({ ...prev, environmental: { ...prev.environmental, [index]: answer } }));
   };
 
-  const SYMPTOM_WEIGHTS = { "Very Often": 3, "Often": 2, "Sometimes": 1, "Never": 0 };
-  const ENV_WEIGHTS = { "Almost every day": 4, "Often": 3, "Sometimes": 2, "Rarely": 1, "Never": 0 };
-
-  const calcSymptomsScore = () => {
-    const vals = Object.values(answers.symptoms);
-    if (vals.length === 0) return 0;
-    const total = vals.reduce((sum, v) => sum + (SYMPTOM_WEIGHTS[v] || 0), 0);
-    return Math.round((total / (SYMPTOMS.length * 3)) * 100);
+  const SYMPTOM_BASE = { "Never": 0, "Sometimes": 1, "Often": 2, "Very Often": 3 };
+  const ENV_BASE = { "Never": 0, "Rarely": 1, "Sometimes": 2, "Often": 3, "Almost every day": 4 };
+  const MUCUS_POINT_MAP = {
+    'clear': 0, 'white': 0.5, 'yellow': 1,
+    'green': 2, 'brown': 1, 'black': 1
   };
 
-  const calcLifestyleScore = () => {
-    const vals = Object.values(answers.lifestyle);
-    if (vals.length === 0) return 0;
+  const calcSymptomsPoints = () => {
     let total = 0;
-    vals.forEach((v, i) => {
-      const options = LIFESTYLE_QUESTIONS[i]?.options || [];
-      const idx = options.indexOf(v);
-      total += idx >= 0 ? idx : 0;
+    Object.entries(answers.symptoms).forEach(([idx, val]) => {
+      const base = SYMPTOM_BASE[val] || 0;
+      const i = parseInt(idx);
+      const weight = i <= 7 ? 4 : 3; // S1-S8 (idx 0-7) = ×4, S9-S14 (idx 8-13) = ×3
+      total += base * weight;
     });
-    const maxScore = LIFESTYLE_QUESTIONS.reduce((s, q) => s + (q.options.length - 1), 0);
-    return Math.round((total / maxScore) * 100);
+    return total;
   };
 
-  const calcEnvScore = () => {
-    const vals = Object.values(answers.environmental);
-    if (vals.length === 0) return 0;
-    const total = vals.reduce((sum, v) => sum + (ENV_WEIGHTS[v] || 0), 0);
-    return Math.round((total / (ENVIRONMENTAL.length * 4)) * 100);
+  const calcLifestylePoints = () => {
+    const L_MAP = [
+      {"7–9 hours":0, "6–7 hours":1, "Less than 6 hours":2, "Irregular sleep schedule":2},
+      {"Never":0, "Rarely":1, "Sometimes":2, "Often":3, "Almost every day":4},
+      {"Every day":0, "3–5 times/week":0, "1–2 times/week":1, "Rarely":2, "Never":2},
+      {"Never":0, "Rarely":1, "1–2 times/month":1, "1–2 times/week":2, "3+ times/week":3},
+      {"Never":0, "Occasionally":1, "Several times/month":2, "Several times/week":3, "Almost every day":4}
+    ];
+    let total = 0;
+    Object.entries(answers.lifestyle).forEach(([idx, val]) => {
+      total += L_MAP[parseInt(idx)]?.[val] ?? 0;
+    });
+    return total;
   };
 
-  const calcMucusScore = () => {
+  const calcEnvPoints = () => {
+    let total = 0;
+    Object.values(answers.environmental).forEach(v => {
+      total += ENV_BASE[v] || 0;
+    });
+    return total;
+  };
+
+  const calcMucusPoints = () => {
     if (!answers.mucusResult) return 0;
-    
-    // Prevent double counting symptom severity:
-    // If the color was decided in the grey zone (where symptoms might have influenced the result),
-    // fallback to using the manually selected color's risk score.
-    const riskScoreToUse = answers.mucusResult.isGreyZone && answers.mucusColor
-      ? answers.mucusColor.riskScore
-      : answers.mucusResult.detectedColor.riskScore;
-      
-    return Math.round((riskScoreToUse / 4) * 100);
+    const colorId = answers.mucusResult.isGreyZone && answers.mucusColor
+      ? answers.mucusColor.id
+      : answers.mucusResult.detectedColor.id;
+    return MUCUS_POINT_MAP[colorId] ?? 0;
   };
 
-  const getScoreLabel = (score) => {
-    if (score <= 25) return { label: 'Low', cls: 'success' };
-    if (score <= 55) return { label: 'Moderate', cls: 'warning' };
-    return { label: 'High', cls: 'danger' };
+  const calcFinalScore = () => {
+    return calcSymptomsPoints() + calcLifestylePoints() + calcEnvPoints() + calcMucusPoints();
   };
 
-  const getScoreColor = (score) => {
-    if (score <= 25) return 'var(--success)';
-    if (score <= 55) return 'var(--warning)';
-    return 'var(--danger)';
+  const getClassification = () => {
+    return calcFinalScore() >= 114 ? "SINUS" : "NON-SINUS";
   };
 
-
-
-  const calculateRisk = () => {
-    const scores = [calcSymptomsScore(), calcLifestyleScore(), calcEnvScore()];
-    if (answers.mucusResult) scores.push(calcMucusScore());
-    
-    const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-    if (avg <= 25) return "Low Risk";
-    if (avg <= 55) return "Moderate Risk";
-    return "High Risk";
+  const getClassificationColor = () => {
+    return calcFinalScore() >= 114 ? 'var(--danger)' : 'var(--success)';
   };
 
   const saveAssessment = () => {
-    const riskLevel = calculateRisk();
+    const finalScore = calcFinalScore();
+    const classification = getClassification();
     const now = new Date();
     let finalMucusLabel = null;
     if (answers.mucusResult) {
@@ -176,12 +171,14 @@ const RiskAssessmentModal = () => {
       id: Date.now(),
       date: now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      riskLevel: riskLevel,
+      classification: classification,
+      finalScore: finalScore,
+      maxScore: 195,
       scores: {
-        symptoms: calcSymptomsScore(),
-        lifestyle: calcLifestyleScore(),
-        environmental: calcEnvScore(),
-        mucus: calcMucusScore()
+        symptoms: calcSymptomsPoints(),
+        lifestyle: calcLifestylePoints(),
+        environmental: calcEnvPoints(),
+        mucus: calcMucusPoints()
       },
       mucusColorLabel: finalMucusLabel
     };
@@ -194,27 +191,29 @@ const RiskAssessmentModal = () => {
   };
 
   const downloadResult = () => {
-    const sScore = calcSymptomsScore();
-    const lScore = calcLifestyleScore();
-    const eScore = calcEnvScore();
-    const mScore = calcMucusScore();
-    const risk = calculateRisk();
+    const sScore = calcSymptomsPoints();
+    const lScore = calcLifestylePoints();
+    const eScore = calcEnvPoints();
+    const mScore = calcMucusPoints();
+    const finalScore = calcFinalScore();
+    const classification = getClassification();
     const now = new Date();
 
     let report = `S.A.F.E. — Sinus Risk Assessment Report\n`;
     report += `========================================\n`;
     report += `Date: ${now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`;
     report += `Time: ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}\n\n`;
-    report += `OVERALL RISK: ${risk}\n\n`;
+    report += `CLASSIFICATION: ${classification}\n`;
+    report += `FINAL SCORE: ${finalScore} / 195\n\n`;
     report += `--- Scores ---\n`;
-    report += `Symptoms Score:      ${sScore}% (${getScoreLabel(sScore).label})\n`;
-    report += `Lifestyle Score:     ${lScore}% (${getScoreLabel(lScore).label})\n`;
-    report += `Environmental Score: ${eScore}% (${getScoreLabel(eScore).label})\n`;
+    report += `Clinical Symptoms:    ${sScore} / 150\n`;
+    report += `Lifestyle Factors:     ${lScore} / 15\n`;
+    report += `Environmental Factors: ${eScore} / 28\n`;
     if (answers.mucusResult) {
       const finalMucusLabel = answers.mucusResult.isGreyZone && answers.mucusColor 
         ? answers.mucusColor.label 
         : answers.mucusResult.detectedColor.label;
-      report += `Mucus Scan Score:    ${mScore}% (${finalMucusLabel})\n`;
+      report += `Mucus Color Scan:      ${mScore} / 2 (${finalMucusLabel})\n`;
     }
     report += `\n--- Symptom Answers ---\n`;
     SYMPTOMS.forEach((s, i) => {
@@ -255,14 +254,12 @@ const RiskAssessmentModal = () => {
     });
   };
 
-  const symptomsScore = calcSymptomsScore();
-  const lifestyleScore = calcLifestyleScore();
-  const envScore = calcEnvScore();
-  const mucusScore = calcMucusScore();
-  const symptomsLabel = getScoreLabel(symptomsScore);
-  const lifestyleLabel = getScoreLabel(lifestyleScore);
-  const envLabel = getScoreLabel(envScore);
-  const mucusLabel = getScoreLabel(mucusScore);
+  const symptomsScore = calcSymptomsPoints();
+  const lifestyleScore = calcLifestylePoints();
+  const envScore = calcEnvPoints();
+  const mucusScore = calcMucusPoints();
+  const finalScore = calcFinalScore();
+  const classification = getClassification();
 
   const handleMucusUpload = (file) => {
     if (!file) return;
@@ -577,44 +574,52 @@ const RiskAssessmentModal = () => {
             <h2 className="text-center">Your Sinus Risk Assessment</h2>
             
             <div className="results-dashboard">
-              <div className="gauge-container card">
-                <div className="circular-gauge">
-                  <div className="gauge-circle">
-                    <span className="gauge-value">{calculateRisk()}</span>
-                  </div>
+              {/* Classification Banner */}
+              <div className="classification-banner card" style={{
+                backgroundColor: getClassificationColor() + '15',
+                borderColor: getClassificationColor(),
+                borderWidth: '2px',
+                borderStyle: 'solid',
+                textAlign: 'center',
+                padding: '2rem 1rem',
+                marginBottom: '1.5rem'
+              }}>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '1px' }}>Classification</h3>
+                <div style={{ fontSize: '2.5rem', fontWeight: '800', color: getClassificationColor(), margin: '0.5rem 0' }}>
+                  {classification}
                 </div>
-                <h3>Overall Risk Score</h3>
+                <p style={{ margin: 0, fontWeight: '600', color: 'var(--text-main)', fontSize: '1.1rem' }}>Final Score: {finalScore} / 195</p>
               </div>
 
               <div className="scores-breakdown">
                 <div className="score-card card">
                   <div className="score-header">
-                    <h4>Symptoms Score</h4>
-                    <span className={`score-badge ${symptomsLabel.cls}`}>{symptomsLabel.label}</span>
+                    <h4>Clinical Symptoms</h4>
+                    <span className="score-badge" style={{backgroundColor: 'var(--primary)', color: 'white'}}>{symptomsScore} / 150</span>
                   </div>
-                  <div className="progress-container"><div className="progress-bar" style={{width: `${symptomsScore}%`, backgroundColor: getScoreColor(symptomsScore)}}></div></div>
+                  <div className="progress-container"><div className="progress-bar" style={{width: `${(symptomsScore/150)*100}%`, backgroundColor: 'var(--primary)'}}></div></div>
                 </div>
                 <div className="score-card card">
                   <div className="score-header">
-                    <h4>Lifestyle Score</h4>
-                    <span className={`score-badge ${lifestyleLabel.cls}`}>{lifestyleLabel.label}</span>
+                    <h4>Lifestyle Factors</h4>
+                    <span className="score-badge" style={{backgroundColor: 'var(--primary)', color: 'white'}}>{lifestyleScore} / 15</span>
                   </div>
-                  <div className="progress-container"><div className="progress-bar" style={{width: `${lifestyleScore}%`, backgroundColor: getScoreColor(lifestyleScore)}}></div></div>
+                  <div className="progress-container"><div className="progress-bar" style={{width: `${(lifestyleScore/15)*100}%`, backgroundColor: 'var(--primary)'}}></div></div>
                 </div>
                 <div className="score-card card">
                   <div className="score-header">
-                    <h4>Environmental Score</h4>
-                    <span className={`score-badge ${envLabel.cls}`}>{envLabel.label}</span>
+                    <h4>Environmental Factors</h4>
+                    <span className="score-badge" style={{backgroundColor: 'var(--primary)', color: 'white'}}>{envScore} / 28</span>
                   </div>
-                  <div className="progress-container"><div className="progress-bar" style={{width: `${envScore}%`, backgroundColor: getScoreColor(envScore)}}></div></div>
+                  <div className="progress-container"><div className="progress-bar" style={{width: `${(envScore/28)*100}%`, backgroundColor: 'var(--primary)'}}></div></div>
                 </div>
                 {answers.mucusResult && (
                   <div className="score-card card">
                     <div className="score-header">
-                      <h4>Mucus Score</h4>
-                      <span className={`score-badge ${mucusLabel.cls}`}>{mucusLabel.label}</span>
+                      <h4>Mucus Color Scan</h4>
+                      <span className="score-badge" style={{backgroundColor: 'var(--primary)', color: 'white'}}>{mucusScore} / 2</span>
                     </div>
-                    <div className="progress-container"><div className="progress-bar" style={{width: `${mucusScore}%`, backgroundColor: getScoreColor(mucusScore)}}></div></div>
+                    <div className="progress-container"><div className="progress-bar" style={{width: `${(mucusScore/2)*100}%`, backgroundColor: 'var(--primary)'}}></div></div>
                   </div>
                 )}
               </div>
