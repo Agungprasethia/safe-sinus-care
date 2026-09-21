@@ -207,29 +207,47 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           // ONLY if it didn't lean into any specific distinct color hue
           if (!matched && s <= 25 && l >= 45) {
             // === Clear vs White Mucus Detection ===
-            // Transparent (clear) liquids on tissue often create sharp, bright specular highlights (glares).
-            // Opaque (white) liquids scatter light, resulting in softer shading and flatter highlights.
-            
-            let maxL = 0;
-            for (let i = 0; i < lightnessPixels.length; i++) {
-              if (lightnessPixels[i] > maxL) maxL = lightnessPixels[i];
-            }
+            // Primary signal: Average Lightness (L)
+            //   - Clear/transparent mucus on tissue → very high L (tissue visible through mucus)
+            //   - White/opaque mucus on tissue → slightly lower L (opaque mucus blocks tissue brightness)
+            // Secondary signal: StdDev of Lightness
+            //   - Clear → low stdDev (center sampling captures mostly uniform tissue, occasional small glare)
+            //   - White → higher stdDev (glossy surface creates reflections, shadows, 3D texture)
+            // Tertiary signal: Average Saturation (S)
+            //   - Clear → very low S (~0-5, almost no color)
+            //   - White/cloudy → slightly higher S (~5-15, faint cloudiness tint)
 
-            console.log(`[MucusScan Clear/White] Avg L=${l.toFixed(1)}, Max L=${maxL.toFixed(1)}, StdDevL=${stdDevL.toFixed(2)}`);
+            let clearEvidence = 0;
+            let whiteEvidence = 0;
 
-            // If we see extremely bright, sharp highlights and high variance -> likely clear/wet transparent
-            if (maxL > 90 && stdDevL > 12) {
+            // Lightness scoring (primary, weight: 3)
+            if (l >= 85) clearEvidence += 3;
+            else if (l >= 80) clearEvidence += 1;
+            else if (l <= 72) whiteEvidence += 3;
+            else if (l <= 77) whiteEvidence += 1;
+
+            // StdDev scoring (secondary, weight: 2)
+            if (stdDevL <= 5) clearEvidence += 2;
+            else if (stdDevL <= 8) clearEvidence += 1;
+            else if (stdDevL >= 14) whiteEvidence += 2;
+            else if (stdDevL >= 10) whiteEvidence += 1;
+
+            // Saturation scoring (tertiary, weight: 1)
+            if (s <= 5) clearEvidence += 1;
+            else if (s >= 12) whiteEvidence += 1;
+
+            console.log(`[MucusScan Clear/White] L=${l}, stdDevL=${stdDevL.toFixed(2)}, S=${s} -> Evidence: clear=${clearEvidence}, white=${whiteEvidence}`);
+
+            // Strict threshold to avoid false positives (must beat other by 2)
+            if (clearEvidence >= 3 && clearEvidence >= whiteEvidence + 2) {
               matched = MUCUS_COLORS.find(c => c.id === 'clear');
-            } 
-            // If the surface is very flat and lacks sharp highlights -> likely opaque white
-            else if (maxL < 85 && stdDevL < 8) {
+            } else if (whiteEvidence >= 3 && whiteEvidence >= clearEvidence + 2) {
               matched = MUCUS_COLORS.find(c => c.id === 'white');
-            } 
-            else {
+            } else {
               // Grey zone: Ambiguous lighting or texture
               isGreyZone = true;
-              let clearScore = 0;
-              let whiteScore = 0;
+              let clearScore = clearEvidence;
+              let whiteScore = whiteEvidence;
               
               if (userSelectedColor) {
                 if (userSelectedColor.id === 'clear') clearScore += 2;
