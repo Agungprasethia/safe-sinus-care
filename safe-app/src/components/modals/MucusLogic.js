@@ -318,7 +318,8 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           const maxStdDev = Math.max(...regionStdDevs);
           console.log(`6. Metrics Variance:`);
           console.log(`   - Mean of StdDevL: ${meanStdDev.toFixed(2)}`);
-          console.log(`   - Variance of StdDevL: ${varianceOfStdDev.toFixed(2)} (Threshold: <15 White, >25 Clear)`);
+          console.log(`   - Variance of StdDevL: ${varianceOfStdDev.toFixed(2)}`);
+          console.log(`   - METRIK UTAMA -> Mean StdDevL: ${meanStdDev.toFixed(2)} (Threshold: <5.5 White, >7.0 Clear, 5.5-7.0 Grey Zone)`);
           console.log(`   - Max StdDevL: ${maxStdDev.toFixed(2)}`);
           
           console.log(`7. Metrics Specular Highlight (Kilau Cahaya/Glare):`);
@@ -365,38 +366,48 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
              confidence = potentialBloodConfidence;
           }
           
-          // C. Achromatic Check (White vs Clear) based on variance
+          // C. Achromatic Check (White vs Clear) — DATA-CALIBRATED THRESHOLDS
+          // Dikalibrasi dari data nyata dua sample:
+          //   Clear: meanStdDevL = 7.12, maxStdDevL = 9.65
+          //   White: meanStdDevL = 5.62, maxStdDevL = 7.82
+          //   Midpoint = 6.37, buffer: <5.5 = White, >7.0 = Clear, 5.5-7.0 = Grey Zone
           if (!matched) {
              let achromaticMatch = null;
              let achromaticConfidence = 'Low';
              let isClearSignal = false;
              
-             // White mucus is generally opaque, producing uniform regions (lower varianceOfStdDev).
-             // Clear mucus allows background to show through unevenly, or has strong specular highlights (higher varianceOfStdDev).
-             if (varianceOfStdDev > 25) {
-                 // High variance between regions -> uneven -> Clear (Sinyal jelas)
+             // METRIK UTAMA: meanStdDev (rata-rata stdDevL dari 9 sub-region)
+             // Didukung oleh maxStdDev sebagai sinyal sekunder/tie-breaker
+             if (meanStdDev > 7.0) {
+                 // Clear: tekstur tidak merata, ada refraksi/bayangan/kilau
                  achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
-                 achromaticConfidence = varianceOfStdDev > 40 ? 'Medium' : 'Low';
+                 achromaticConfidence = meanStdDev > 9.0 ? 'High' : 'Medium';
                  isClearSignal = true;
-             } else if (varianceOfStdDev < 15) {
-                 // Low variance between regions -> opaque uniform -> White (Sinyal jelas)
+             } else if (meanStdDev < 5.5) {
+                 // White: tekstur merata, opaque solid
                  achromaticMatch = MUCUS_COLORS.find(c => c.id === 'white');
-                 achromaticConfidence = varianceOfStdDev < 8 ? 'High' : 'Medium';
+                 achromaticConfidence = meanStdDev < 4.0 ? 'High' : 'Medium';
                  isClearSignal = true;
              } else {
-                 // 15 - 25 is ambiguous (Tidak ada sinyal jelas)
-                 // Default fallback untuk area abu-abu ini
-                 achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
-                 achromaticConfidence = 'Low';
+                 // 5.5 - 7.0 Grey Zone: ambiguous, gunakan maxStdDev sebagai tie-breaker
+                 if (maxStdDev > 8.5) {
+                     // Ada setidaknya satu region dengan kontras tinggi -> kemungkinan Clear
+                     achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
+                     achromaticConfidence = 'Low';
+                 } else {
+                     // Semua region relatif flat -> kemungkinan White
+                     achromaticMatch = MUCUS_COLORS.find(c => c.id === 'white');
+                     achromaticConfidence = 'Low';
+                 }
                  isClearSignal = false;
              }
              
-             // Cek Grey Area user selection
-             if (varianceOfStdDev >= 15 && varianceOfStdDev <= 25) {
+             // Cek Grey Area user selection (override jika user secara manual memilih)
+             if (meanStdDev >= 5.5 && meanStdDev <= 7.0) {
                  if (userSelectedColor && (userSelectedColor.id === 'clear' || userSelectedColor.id === 'white')) {
                      achromaticMatch = MUCUS_COLORS.find(c => c.id === userSelectedColor.id);
                      isGreyZone = true;
-                     isClearSignal = true; // User manual selection makes it a clear signal
+                     isClearSignal = true;
                  }
              }
              
