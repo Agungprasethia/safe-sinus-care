@@ -252,6 +252,9 @@ const MucusScanModal = () => {
           <div className="ms-step-title">
             <h3>Upload mucus photo</h3>
             <p>Take or upload a clear photo of your nasal mucus sample.</p>
+            <div className="ms-upload-hint">
+              <strong>PENTING:</strong> Pastikan sampel lendir berada tepat di <strong>tengah foto</strong> di atas tisu putih polos dengan pencahayaan yang cukup.
+            </div>
           </div>
         </div>
 
@@ -409,7 +412,14 @@ const MucusScanModal = () => {
                 }}
               ></div>
               <div className="ms-result-info">
-                <h3>{mucusAnalysis.detectedColor.label}</h3>
+                <div className="ms-result-title-row">
+                  <h3>{mucusAnalysis.detectedColor.label}</h3>
+                  {mucusAnalysis.confidence && (
+                    <span className={`ms-confidence-badge confidence-${mucusAnalysis.confidence.toLowerCase()}`}>
+                      {mucusAnalysis.confidence} Confidence
+                    </span>
+                  )}
+                </div>
                 <span className={`score-badge ${getSeverityClass(mucusAnalysis.detectedColor.riskScore)}`}>
                   {mucusAnalysis.detectedColor.severity}
                 </span>
@@ -431,6 +441,13 @@ const MucusScanModal = () => {
               </div>
             </div>
           </div>
+
+          {mucusAnalysis.confidence === 'Low' && (
+            <div className="ms-low-confidence-warning">
+              <AlertTriangle size={18} />
+              <p>Hasil kurang jelas — coba ambil ulang foto dengan pencahayaan lebih baik, pastikan lendir berada di tengah, atau pastikan pilihan manual sudah sesuai.</p>
+            </div>
+          )}
 
           {/* Scan Again */}
           <button className="btn btn-outline ms-reset-btn" onClick={handleReset}>

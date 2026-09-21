@@ -52,8 +52,8 @@ const FeatureGrid = ({ openModal }) => {
         </div>
         <div className="features-grid">
           {features.map((feature, index) => (
-            <div 
-              key={feature.id} 
+            <div
+              key={feature.id}
               className={`feature-card ${index === 0 ? 'featured-card' : ''}`}
               onClick={() => openModal(feature.id)}
             >

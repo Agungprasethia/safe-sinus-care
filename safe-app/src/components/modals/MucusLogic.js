@@ -100,157 +100,242 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
         try {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          const size = 150; // Increased resolution for better precision
+          const size = 150; // Use 150x150 for processing
           canvas.width = size;
           canvas.height = size;
           ctx.drawImage(img, 0, 0, size, size);
           const imageData = ctx.getImageData(0, 0, size, size).data;
 
-          // --- 1. Global Scan & Find Background Baseline (White Balance) ---
-          let allPixels = [];
-          for (let y = 0; y < size; y++) {
-            for (let x = 0; x < size; x++) {
-              const i = (y * size + x) * 4;
-              const r = imageData[i], g = imageData[i + 1], b = imageData[i + 2];
-              const max = Math.max(r, g, b) / 255;
-              const min = Math.min(r, g, b) / 255;
-              const l = (max + min) / 2;
-              
-              // Only process center 80% to ignore extreme edges
-              if (x > size * 0.1 && x < size * 0.9 && y > size * 0.1 && y < size * 0.9) {
-                allPixels.push({ x, y, r, g, b, l });
+          // Helper to convert RGB to HSL
+          const rgbToHsl = (r, g, b) => {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+            if (max === min) {
+              h = s = 0; // achromatic
+            } else {
+              const d = max - min;
+              s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+              switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
               }
+              h /= 6;
             }
-          }
-
-          // Sort by lightness to find the background (top 15% brightest, excluding top 1% glare)
-          allPixels.sort((a, b) => b.l - a.l);
-          const backgroundPixels = allPixels.slice(
-            Math.floor(allPixels.length * 0.01), 
-            Math.floor(allPixels.length * 0.15)
-          );
-          
-          let tR = 0, tG = 0, tB = 0;
-          backgroundPixels.forEach(p => { tR += p.r; tG += p.g; tB += p.b; });
-          const bgRGB = { 
-            r: tR / backgroundPixels.length, 
-            g: tG / backgroundPixels.length, 
-            b: tB / backgroundPixels.length 
+            return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
           };
 
-          // --- 2. Foreground Extraction (Find the actual mucus) ---
-          let opaqueR = 0, opaqueG = 0, opaqueB = 0;
-          let opaqueCount = 0;
-          let specularCount = 0;
+          // --- 0. Image Quality Validation ---
+          let totalL = 0;
+          const allPixels = [];
           
-          let centerR = 0, centerG = 0, centerB = 0; // Fallback
-          let centerCount = 0;
+          for (let i = 0; i < imageData.length; i += 4) {
+            const r = imageData[i];
+            const g = imageData[i + 1];
+            const b = imageData[i + 2];
+            const [h, s, l] = rgbToHsl(r, g, b);
+            totalL += l;
+            
+            const x = (i / 4) % size;
+            const y = Math.floor((i / 4) / size);
+            allPixels.push({ x, y, r, g, b, h, s, l });
+          }
+          
+          const avgGlobalL = totalL / (size * size);
+          
+          if (avgGlobalL < 15) {
+             reject(new Error('Foto terlalu gelap. Silakan ambil ulang foto dengan pencahayaan yang lebih baik.'));
+             return;
+          }
+          if (avgGlobalL > 90) {
+             reject(new Error('Foto terlalu terang (overexposed). Silakan ambil ulang foto tanpa pantulan cahaya berlebih.'));
+             return;
+          }
 
+          // --- 1. Precise Segmentation (Central Cropping) ---
+          // Use a central area (e.g. 40% of the image size centered) to avoid tissue background
+          const cropSize = Math.floor(size * 0.4); 
+          const startX = Math.floor((size - cropSize) / 2);
+          const startY = Math.floor((size - cropSize) / 2);
+          const endX = startX + cropSize;
+          const endY = startY + cropSize;
+
+          const centerPixels = [];
           for (const p of allPixels) {
-            const dx = p.x - (size / 2);
-            const dy = p.y - (size / 2);
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            
-            // Distance from background color
-            const colorDist = Math.sqrt(
-              Math.pow(p.r - bgRGB.r, 2) + 
-              Math.pow(p.g - bgRGB.g, 2) + 
-              Math.pow(p.b - bgRGB.b, 2)
-            );
-
-            // Specular/Glare: Very bright pixels
-            const isSpecular = p.r > 220 && p.g > 220 && p.b > 220;
-            
-            // Opaque Substance: Deviates from background color AND is not just white glare
-            const isOpaque = colorDist > 35 && !isSpecular;
-
-            if (isSpecular) specularCount++;
-            
-            if (isOpaque) {
-              opaqueCount++;
-              opaqueR += p.r;
-              opaqueG += p.g;
-              opaqueB += p.b;
-            }
-
-            if (dist < size * 0.4) {
-              centerR += p.r; centerG += p.g; centerB += p.b;
-              centerCount++;
+            if (p.x >= startX && p.x < endX && p.y >= startY && p.y < endY) {
+              centerPixels.push(p);
             }
           }
 
-          const totalPixels = allPixels.length;
-          const specularPct = (specularCount / totalPixels) * 100;
-          const opaquePct = (opaqueCount / totalPixels) * 100;
-
-          // Determine the dominant color of the SUBSTANCE (not the background)
-          const useOpaqueColor = opaquePct > 8; // If at least 8% of the image is a distinct substance
-          const avgR = useOpaqueColor ? (opaqueR / opaqueCount) : (centerR / centerCount);
-          const avgG = useOpaqueColor ? (opaqueG / opaqueCount) : (centerG / centerCount);
-          const avgB = useOpaqueColor ? (opaqueB / opaqueCount) : (centerB / centerCount);
-
-          const rAvg = avgR / 255, gAvg = avgG / 255, bAvg = avgB / 255;
-          const max = Math.max(rAvg, gAvg, bAvg), min = Math.min(rAvg, gAvg, bAvg);
-          let h = 0, s = 0, l = (max + min) / 2;
-
-          if (max !== min) {
-            const d = max - min;
-            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-            switch (max) {
-              case rAvg: h = ((gAvg - bAvg) / d + (gAvg < bAvg ? 6 : 0)) / 6; break;
-              case gAvg: h = ((bAvg - rAvg) / d + 2) / 6; break;
-              case bAvg: h = ((rAvg - gAvg) / d + 4) / 6; break;
-              default: break;
-            }
+          // --- 2. Blood Detection (Top Priority) ---
+          let bloodClusterCount = 0;
+          for (const p of centerPixels) {
+             // Red/Brown Hue range is approx 0-35 or 330-360.
+             const isRedHue = (p.h >= 0 && p.h <= 35) || (p.h >= 330 && p.h <= 360);
+             if (isRedHue && p.s > 40 && p.l > 15 && p.l < 85) {
+                bloodClusterCount++;
+             }
           }
-          h = Math.round(h * 360);
-          s = Math.round(s * 100);
-          l = Math.round(l * 100);
+          
+          const bloodRatio = bloodClusterCount / centerPixels.length;
+          
+          let potentialBloodMatch = null;
+          let potentialBloodConfidence = null;
 
-          console.log(`[MucusScan v8.1] BG: [${Math.round(bgRGB.r)},${Math.round(bgRGB.g)},${Math.round(bgRGB.b)}], Specular: ${specularPct.toFixed(1)}%, Opaque: ${opaquePct.toFixed(1)}%, Substance HSL: [${h},${s}%,${l}%]`);
+          if (bloodRatio >= 0.02) {
+             if (bloodRatio > 0.50) {
+                 // > 50%: Sangat mungkin latar belakang kulit yang tembus pandang.
+                 // Jangan langsung vonis, simpan sebagai cadangan dengan confidence Low.
+                 // Kita akan mencari sinyal warna lain (seperti variance tinggi dari glare mucus Clear).
+                 potentialBloodMatch = MUCUS_COLORS.find(c => c.id === 'brown');
+                 potentialBloodConfidence = 'Low';
+             } else if (bloodRatio >= 0.15 && bloodRatio <= 0.50) {
+                 // 15 - 50%: Kontaminasi menengah (mungkin pinggiran jari)
+                 // Simpan sebagai cadangan dengan confidence Medium.
+                 potentialBloodMatch = MUCUS_COLORS.find(c => c.id === 'brown');
+                 potentialBloodConfidence = 'Medium';
+             } else {
+                 // 2 - 15%: Bercak darah spesifik di dalam lendir
+                 // Ini adalah sinyal kuat darah asli, langsung return.
+                 resolve({
+                   detectedColor: MUCUS_COLORS.find(c => c.id === 'brown'),
+                   confidence: bloodRatio >= 0.05 ? 'High' : 'Medium',
+                   avgRGB: { r: 0, g: 0, b: 0 },
+                   hsl: { h: 0, s: 0, l: 0 },
+                   isGreyZone: false,
+                   reason: 'Bercak darah atau warna merah/coklat pekat terdeteksi pada sampel.'
+                 });
+                 return;
+             }
+          }
+
+          // --- 3. Multi-Region Variance Sampling (For Clear vs White) ---
+          // Divide center crop into 3x3 grid (9 sub-regions)
+          const regions = Array.from({length: 9}, () => []);
+          const regionSizeX = Math.floor(cropSize / 3);
+          const regionSizeY = Math.floor(cropSize / 3);
+          
+          let totalR = 0, totalG = 0, totalB = 0;
+          
+          for (const p of centerPixels) {
+             // For average color calculation of the whole center
+             totalR += p.r; totalG += p.g; totalB += p.b;
+             
+             // Map to 3x3 grid (0-8)
+             const gridX = Math.floor((p.x - startX) / regionSizeX);
+             const gridY = Math.floor((p.y - startY) / regionSizeY);
+             // Safety bounds
+             const validX = Math.min(2, Math.max(0, gridX));
+             const validY = Math.min(2, Math.max(0, gridY));
+             const idx = validY * 3 + validX;
+             
+             regions[idx].push(p.l);
+          }
+
+          // Calculate variance of stdDevL across regions
+          const regionStdDevs = [];
+          for (const rL of regions) {
+            if (rL.length === 0) continue;
+            const mean = rL.reduce((sum, val) => sum + val, 0) / rL.length;
+            const variance = rL.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / rL.length;
+            regionStdDevs.push(Math.sqrt(variance));
+          }
+          
+          const meanStdDev = regionStdDevs.reduce((s, v) => s + v, 0) / regionStdDevs.length;
+          const varianceOfStdDev = regionStdDevs.reduce((s, v) => s + Math.pow(v - meanStdDev, 2), 0) / regionStdDevs.length;
+          
+          // Calculate average color of the entire central crop
+          const count = centerPixels.length;
+          const avgR = totalR / count;
+          const avgG = totalG / count;
+          const avgB = totalB / count;
+          const [h, s, l] = rgbToHsl(avgR, avgG, avgB);
+          
+          console.log(`[MucusScan v9.0] Center HSL: [${h},${s}%,${l}%], BloodRatio: ${(bloodRatio*100).toFixed(2)}%, VarianceOfStdDev: ${varianceOfStdDev.toFixed(2)}`);
 
           let matched = null;
           let isGreyZone = false;
+          let confidence = 'High';
 
-          // 1. CLEAR CHECK FIRST!
-          // If there is very little opaque substance that deviates from the background, 
-          // it means the image is just background (e.g. finger) + wet glare.
-          if (opaquePct < 8) {
-             matched = MUCUS_COLORS.find(c => c.id === 'clear');
-          }
-
-          // 2. Black / Dark check
-          if (!matched && l <= 25) {
-            matched = MUCUS_COLORS.find(c => c.id === 'black');
-          } 
+          // --- 4. Classification Gates ---
           
-          // 3. HUE-based classification (Green, Yellow, Brown/Red)
-          if (!matched) {
-            for (const mc of MUCUS_COLORS) {
-              if (!mc.hueRange) continue;
-              const inHue = (h >= mc.hueRange[0] && h <= mc.hueRange[1]) ||
-                            (mc.altHueRange && h >= mc.altHueRange[0] && h <= mc.altHueRange[1]);
-              if (inHue && s >= mc.satRange[0] && s <= mc.satRange[1] &&
-                  l >= mc.lightRange[0] && l <= mc.lightRange[1]) {
-                matched = mc;
-                break;
-              }
-            }
+          // A. Black check
+          if (l <= 25) {
+             matched = MUCUS_COLORS.find(c => c.id === 'black');
+             confidence = l < 15 ? 'High' : 'Medium';
           }
-
-          // 4. White vs Clear Fallback (if hue didn't match distinct colors)
+          
+          // B. Hue-based (Green / Yellow) with Saturation Floor
           if (!matched) {
-            if (opaquePct > 12) {
-               matched = MUCUS_COLORS.find(c => c.id === 'white');
-            } else {
-               matched = MUCUS_COLORS.find(c => c.id === 'clear');
-            }
-            
-            // Grey area handling: if user explicitly selected clear/white, respect it in borderline cases
-            if (userSelectedColor && (userSelectedColor.id === 'clear' || userSelectedColor.id === 'white')) {
-               isGreyZone = true;
-               matched = MUCUS_COLORS.find(c => c.id === userSelectedColor.id);
-            }
+             // Floor minimum saturasi (s > 10) untuk menghindari noise warna pada pixel putih/abu-abu
+             if (s > 10) {
+                 const isGreen = h >= 65 && h <= 170;
+                 const isYellow = h >= 35 && h < 65;
+                 
+                 if (isGreen) {
+                     matched = MUCUS_COLORS.find(c => c.id === 'green');
+                     confidence = s > 25 ? 'High' : 'Medium';
+                 } else if (isYellow) {
+                     matched = MUCUS_COLORS.find(c => c.id === 'yellow');
+                     confidence = s > 25 ? 'High' : 'Medium';
+                 }
+             }
+          }
+          
+          // B2. Fallback to Potential Blood (15-50% contamination)
+          // Jika tidak ada warna dominan hijau/kuning yang tertangkap, dan kita punya kontaminasi darah 15-50%,
+          // maka ambil hasil darah tersebut daripada menganggapnya putih/clear (karena porsinya terlalu besar untuk diabaikan).
+          if (!matched && potentialBloodMatch) {
+             matched = potentialBloodMatch;
+             confidence = potentialBloodConfidence;
+          }
+          
+          // C. Achromatic Check (White vs Clear) based on variance
+          if (!matched) {
+             let achromaticMatch = null;
+             let achromaticConfidence = 'Low';
+             let isClearSignal = false;
+             
+             // White mucus is generally opaque, producing uniform regions (lower varianceOfStdDev).
+             // Clear mucus allows background to show through unevenly, or has strong specular highlights (higher varianceOfStdDev).
+             if (varianceOfStdDev > 35) {
+                 // High variance between regions -> uneven -> Clear (Sinyal jelas)
+                 achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
+                 achromaticConfidence = varianceOfStdDev > 45 ? 'Medium' : 'Low';
+                 isClearSignal = true;
+             } else if (varianceOfStdDev < 20) {
+                 // Low variance between regions -> opaque uniform -> White (Sinyal jelas)
+                 achromaticMatch = MUCUS_COLORS.find(c => c.id === 'white');
+                 achromaticConfidence = varianceOfStdDev < 12 ? 'High' : 'Medium';
+                 isClearSignal = true;
+             } else {
+                 // 20 - 35 is ambiguous (Tidak ada sinyal jelas)
+                 // Default fallback untuk area abu-abu ini
+                 achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
+                 achromaticConfidence = 'Low';
+                 isClearSignal = false;
+             }
+             
+             // Cek Grey Area user selection
+             if (varianceOfStdDev >= 20 && varianceOfStdDev <= 35) {
+                 if (userSelectedColor && (userSelectedColor.id === 'clear' || userSelectedColor.id === 'white')) {
+                     achromaticMatch = MUCUS_COLORS.find(c => c.id === userSelectedColor.id);
+                     isGreyZone = true;
+                     isClearSignal = true; // User manual selection makes it a clear signal
+                 }
+             }
+             
+             // D. Fallback Chain:
+             // Jika ada potensi darah (15-50% kontaminasi) dan achromatic TIDAK memberikan sinyal jelas,
+             // gunakan potensi darah tersebut. Jika achromatic punya sinyal jelas, gunakan achromatic.
+             if (potentialBloodMatch && !isClearSignal) {
+                 matched = potentialBloodMatch;
+                 confidence = potentialBloodConfidence;
+             } else {
+                 matched = achromaticMatch;
+                 confidence = achromaticConfidence;
+             }
           }
 
           if (!matched) {
@@ -261,24 +346,26 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
               textColor: '#475569',
               riskScore: 0,
               severity: 'Unknown',
-              description: 'The color could not be clearly detected from the image. Lighting, shadows, or background may be affecting the result.',
-              advice: 'Please try taking another photo with better lighting, preferably against a white tissue.'
+              description: 'Warna tidak dapat dideteksi dengan jelas dari foto. Pencahayaan, bayangan, atau latar belakang mungkin memengaruhi hasil.',
+              advice: 'Silakan ambil ulang foto dengan pencahayaan yang lebih baik, di atas tisu putih polos.'
             };
+            confidence = 'Low';
           }
 
           resolve({
             detectedColor: matched,
+            confidence,
             avgRGB: { r: Math.round(avgR), g: Math.round(avgG), b: Math.round(avgB) },
             hsl: { h, s, l },
             isGreyZone
           });
         } catch (err) {
-          reject(new Error('Failed to process image data. Please try again.'));
+          reject(new Error('Gagal memproses data gambar. Silakan coba lagi.'));
         }
       };
       img.src = URL.createObjectURL(file);
     } catch (err) {
-      reject(new Error('An unexpected error occurred. Please try again.'));
+      reject(new Error('Terjadi kesalahan tak terduga. Silakan coba lagi.'));
     }
   });
 };
