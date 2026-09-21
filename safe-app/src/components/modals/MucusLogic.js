@@ -259,11 +259,49 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           const [h, s, l] = rgbToHsl(avgR, avgG, avgB);
           
           // ==========================================
+          // METRIK BARU: Specular Highlights
+          // ==========================================
+          let l85Count = 0;
+          let l90Count = 0;
+          let l95Count = 0;
+          for (const p of centerPixels) {
+             if (p.l >= 85) l85Count++;
+             if (p.l >= 90) l90Count++;
+             if (p.l >= 95) l95Count++;
+          }
+          const l85Ratio = (l85Count / count) * 100;
+          const l90Ratio = (l90Count / count) * 100;
+          const l95Ratio = (l95Count / count) * 100;
+
+          // ==========================================
+          // VISUAL CROP: Render 40% area ke Base64
+          // ==========================================
+          const cropCanvas = document.createElement('canvas');
+          cropCanvas.width = cropSize;
+          cropCanvas.height = cropSize;
+          const cropCtx = cropCanvas.getContext('2d');
+          const cropImgData = cropCtx.createImageData(cropSize, cropSize);
+          let pxIdx = 0;
+          for (let cy = startY; cy < endY; cy++) {
+             for (let cx = startX; cx < endX; cx++) {
+                const srcIdx = (cy * size + cx) * 4;
+                cropImgData.data[pxIdx++] = imageData[srcIdx];
+                cropImgData.data[pxIdx++] = imageData[srcIdx+1];
+                cropImgData.data[pxIdx++] = imageData[srcIdx+2];
+                cropImgData.data[pxIdx++] = imageData[srcIdx+3];
+             }
+          }
+          cropCtx.putImageData(cropImgData, 0, 0);
+          const base64Crop = cropCanvas.toDataURL('image/jpeg', 0.8);
+          
+          // ==========================================
           // DEBUGGING KONKRET (Sesuai Permintaan User)
           // ==========================================
           console.group('%c🔍 [SAFE DEBUG] Hasil Analisis Lendir', 'color: #0ea5e9; font-size: 14px; font-weight: bold;');
           console.log(`1. Ukuran Image Processing: ${size}x${size} (Setelah crop center square)`);
           console.log(`2. Area Crop 40% Tengah: X(${startX} to ${endX}), Y(${startY} to ${endY})`);
+          console.log(`%c `, `font-size: 1px; padding: ${Math.min(100, cropSize/2)}px ${Math.min(100, cropSize/2)}px; background-image: url(${base64Crop}); background-size: contain; background-repeat: no-repeat; border: 2px solid red;`);
+          console.log(`-> (Klik URL ini untuk melihat gambar crop penuh): ${base64Crop}`);
           console.log(`3. Rata-rata Warna Center Crop: RGB(${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)}) | HSL(${h}, ${s}%, ${l}%)`);
           console.log(`4. Porsi Piksel Darah (bloodRatio): ${(bloodRatio * 100).toFixed(2)}%`);
           if (potentialBloodMatch) {
@@ -282,6 +320,11 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           console.log(`   - Mean of StdDevL: ${meanStdDev.toFixed(2)}`);
           console.log(`   - Variance of StdDevL: ${varianceOfStdDev.toFixed(2)} (Threshold: <15 White, >25 Clear)`);
           console.log(`   - Max StdDevL: ${maxStdDev.toFixed(2)}`);
+          
+          console.log(`7. Metrics Specular Highlight (Kilau Cahaya/Glare):`);
+          console.log(`   - Piksel Sangat Terang (L >= 85): ${l85Count} px (${l85Ratio.toFixed(2)}%)`);
+          console.log(`   - Piksel Super Terang (L >= 90): ${l90Count} px (${l90Ratio.toFixed(2)}%)`);
+          console.log(`   - Piksel Silau Maksimal (L >= 95): ${l95Count} px (${l95Ratio.toFixed(2)}%)`);
           console.groupEnd();
           // ==========================================
 
