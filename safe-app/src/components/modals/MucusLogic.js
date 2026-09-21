@@ -32,8 +32,8 @@ export const MUCUS_COLORS = [
     color: '#FEF3C7',
     textColor: '#92400E',
     hueRange: [35, 65],
-    satRange: [15, 100],
-    lightRange: [30, 90],
+    satRange: [12, 100], // Lowered from 15 to catch pale yellow
+    lightRange: [30, 92], // Raised from 90 to catch bright yellow on tissue
     riskScore: 2,
     severity: 'Moderate',
     description: 'Yellow mucus suggests your immune system is actively fighting an infection. White blood cells rush to the site and produce enzymes that give mucus a yellow tint.',
@@ -45,8 +45,8 @@ export const MUCUS_COLORS = [
     color: '#DCFCE7',
     textColor: '#166534',
     hueRange: [65, 170],
-    satRange: [15, 100],
-    lightRange: [20, 85],
+    satRange: [12, 100], // Lowered from 15 to catch pale green
+    lightRange: [20, 90], // Raised from 85 to catch bright green on tissue
     riskScore: 3,
     severity: 'High',
     description: 'Green mucus indicates a strong immune response, often associated with a bacterial infection. The green color comes from a large concentration of dead white blood cells and bacteria.',
@@ -59,8 +59,8 @@ export const MUCUS_COLORS = [
     textColor: '#991B1B',
     hueRange: [0, 35],
     altHueRange: [330, 360],
-    satRange: [15, 100],
-    lightRange: [15, 80],
+    satRange: [10, 100], // Lowered from 15 to catch pale pink/blood spots washed out by tissue
+    lightRange: [15, 88], // Raised from 80 to catch bright pink on tissue
     riskScore: 3,
     severity: 'High',
     description: 'Brown or reddish mucus may contain dried blood. This can result from nasal dryness, frequent nose blowing, or irritation of nasal tissue.',
