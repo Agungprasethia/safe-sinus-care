@@ -316,16 +316,30 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           console.log(gridStr.join('\n'));
           
           const maxStdDev = Math.max(...regionStdDevs);
-          console.log(`6. Metrics Variance:`);
+          
+          // ==========================================
+          // COMPOSITE SCORE: maxStdDev * 0.6 + l85Ratio * 1.5
+          // Dikalibrasi dari 3 sample nyata:
+          //   Clear#1: score = 9.65*0.6 + 2.30*1.5 = 9.24
+          //   White:   score = 7.82*0.6 + 1.35*1.5 = 6.72
+          //   Clear#3: score = 8.23*0.6 + 1.81*1.5 = 7.66
+          // Threshold SEMENTARA: <7.0 White, >7.5 Clear, 7.0-7.5 Grey Zone
+          // ==========================================
+          const compositeScore = maxStdDev * 0.6 + l85Ratio * 1.5;
+          
+          console.log(`6. Metrics Variance (sinyal pendukung):`);
           console.log(`   - Mean of StdDevL: ${meanStdDev.toFixed(2)}`);
           console.log(`   - Variance of StdDevL: ${varianceOfStdDev.toFixed(2)}`);
-          console.log(`   - METRIK UTAMA -> Mean StdDevL: ${meanStdDev.toFixed(2)} (Threshold: <5.5 White, >7.0 Clear, 5.5-7.0 Grey Zone)`);
           console.log(`   - Max StdDevL: ${maxStdDev.toFixed(2)}`);
           
-          console.log(`7. Metrics Specular Highlight (Kilau Cahaya/Glare):`);
+          console.log(`7. Metrics Specular Highlight (sinyal pendukung):`);
           console.log(`   - Piksel Sangat Terang (L >= 85): ${l85Count} px (${l85Ratio.toFixed(2)}%)`);
           console.log(`   - Piksel Super Terang (L >= 90): ${l90Count} px (${l90Ratio.toFixed(2)}%)`);
           console.log(`   - Piksel Silau Maksimal (L >= 95): ${l95Count} px (${l95Ratio.toFixed(2)}%)`);
+          
+          console.log(`%c8. COMPOSITE SCORE (PENENTU UTAMA): ${compositeScore.toFixed(2)}`, 'color: #f59e0b; font-weight: bold; font-size: 13px;');
+          console.log(`   Formula: maxStdDev(${maxStdDev.toFixed(2)}) × 0.6 + L85%(${l85Ratio.toFixed(2)}) × 1.5`);
+          console.log(`   Threshold: <7.0 = White, >7.5 = Clear, 7.0-7.5 = Grey Zone`);
           console.groupEnd();
           // ==========================================
 
@@ -359,51 +373,40 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           }
           
           // B2. Fallback to Potential Blood (15-50% contamination)
-          // Jika tidak ada warna dominan hijau/kuning yang tertangkap, dan kita punya kontaminasi darah 15-50%,
-          // maka ambil hasil darah tersebut daripada menganggapnya putih/clear (karena porsinya terlalu besar untuk diabaikan).
           if (!matched && potentialBloodMatch) {
              matched = potentialBloodMatch;
              confidence = potentialBloodConfidence;
           }
           
-          // C. Achromatic Check (White vs Clear) — DATA-CALIBRATED THRESHOLDS
-          // Dikalibrasi dari data nyata dua sample:
-          //   Clear: meanStdDevL = 7.12, maxStdDevL = 9.65
-          //   White: meanStdDevL = 5.62, maxStdDevL = 7.82
-          //   Midpoint = 6.37, buffer: <5.5 = White, >7.0 = Clear, 5.5-7.0 = Grey Zone
+          // C. Achromatic Check (White vs Clear) — COMPOSITE SCORE
+          // compositeScore = maxStdDev * 0.6 + l85Ratio * 1.5
+          // Dikalibrasi dari 3 sample nyata (Clear#1=9.24, White=6.72, Clear#3=7.66)
+          // Threshold SEMENTARA: <7.0 = White, >7.5 = Clear, 7.0-7.5 = Grey Zone
           if (!matched) {
              let achromaticMatch = null;
              let achromaticConfidence = 'Low';
              let isClearSignal = false;
              
-             // METRIK UTAMA: meanStdDev (rata-rata stdDevL dari 9 sub-region)
-             // Didukung oleh maxStdDev sebagai sinyal sekunder/tie-breaker
-             if (meanStdDev > 7.0) {
-                 // Clear: tekstur tidak merata, ada refraksi/bayangan/kilau
+             if (compositeScore > 7.5) {
+                 // Clear: high composite → ada refraksi/kilau + tekstur tidak rata
                  achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
-                 achromaticConfidence = meanStdDev > 9.0 ? 'High' : 'Medium';
+                 achromaticConfidence = compositeScore > 9.0 ? 'High' : 'Medium';
                  isClearSignal = true;
-             } else if (meanStdDev < 5.5) {
-                 // White: tekstur merata, opaque solid
+             } else if (compositeScore < 7.0) {
+                 // White: low composite → opaque, flat, tanpa kilau tajam
                  achromaticMatch = MUCUS_COLORS.find(c => c.id === 'white');
-                 achromaticConfidence = meanStdDev < 4.0 ? 'High' : 'Medium';
+                 achromaticConfidence = compositeScore < 5.5 ? 'High' : 'Medium';
                  isClearSignal = true;
              } else {
-                 // 5.5 - 7.0 Grey Zone: ambiguous, gunakan maxStdDev sebagai tie-breaker
-                 if (maxStdDev > 8.5) {
-                     // Ada setidaknya satu region dengan kontras tinggi -> kemungkinan Clear
-                     achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
-                     achromaticConfidence = 'Low';
-                 } else {
-                     // Semua region relatif flat -> kemungkinan White
-                     achromaticMatch = MUCUS_COLORS.find(c => c.id === 'white');
-                     achromaticConfidence = 'Low';
-                 }
+                 // 7.0 - 7.5 Grey Zone: terlalu dekat untuk dipastikan
+                 // Default ke Clear (benefit of the doubt: Clear lebih umum & less concerning)
+                 achromaticMatch = MUCUS_COLORS.find(c => c.id === 'clear');
+                 achromaticConfidence = 'Low';
                  isClearSignal = false;
              }
              
              // Cek Grey Area user selection (override jika user secara manual memilih)
-             if (meanStdDev >= 5.5 && meanStdDev <= 7.0) {
+             if (compositeScore >= 7.0 && compositeScore <= 7.5) {
                  if (userSelectedColor && (userSelectedColor.id === 'clear' || userSelectedColor.id === 'white')) {
                      achromaticMatch = MUCUS_COLORS.find(c => c.id === userSelectedColor.id);
                      isGreyZone = true;
