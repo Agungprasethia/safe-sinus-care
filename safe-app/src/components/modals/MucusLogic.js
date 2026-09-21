@@ -106,7 +106,7 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           ctx.drawImage(img, 0, 0, size, size);
           const imageData = ctx.getImageData(0, 0, size, size).data;
 
-          // --- 1. Global Scan & Find Tissue Baseline (White Balance) ---
+          // --- 1. Global Scan & Find Background Baseline (White Balance) ---
           let allPixels = [];
           for (let y = 0; y < size; y++) {
             for (let x = 0; x < size; x++) {
@@ -116,75 +116,78 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
               const min = Math.min(r, g, b) / 255;
               const l = (max + min) / 2;
               
-              // Only process center 80% to ignore extreme edges/fingers holding the tissue
+              // Only process center 80% to ignore extreme edges
               if (x > size * 0.1 && x < size * 0.9 && y > size * 0.1 && y < size * 0.9) {
                 allPixels.push({ x, y, r, g, b, l });
               }
             }
           }
 
-          // Sort by lightness to find the tissue background (top 15% brightest, excluding top 1% glare)
+          // Sort by lightness to find the background (top 15% brightest, excluding top 1% glare)
           allPixels.sort((a, b) => b.l - a.l);
-          const tissuePixels = allPixels.slice(
+          const backgroundPixels = allPixels.slice(
             Math.floor(allPixels.length * 0.01), 
             Math.floor(allPixels.length * 0.15)
           );
           
           let tR = 0, tG = 0, tB = 0;
-          tissuePixels.forEach(p => { tR += p.r; tG += p.g; tB += p.b; });
-          const tissueRGB = { 
-            r: tR / tissuePixels.length, 
-            g: tG / tissuePixels.length, 
-            b: tB / tissuePixels.length 
+          backgroundPixels.forEach(p => { tR += p.r; tG += p.g; tB += p.b; });
+          const bgRGB = { 
+            r: tR / backgroundPixels.length, 
+            g: tG / backgroundPixels.length, 
+            b: tB / backgroundPixels.length 
           };
 
-          // --- 2. Analyze the Region of Interest (ROI) ---
-          let totalR = 0, totalG = 0, totalB = 0;
-          let pixelCount = 0;
+          // --- 2. Foreground Extraction (Find the actual mucus) ---
+          let opaqueR = 0, opaqueG = 0, opaqueB = 0;
           let opaqueCount = 0;
           let specularCount = 0;
-          let colorDeviationSum = 0;
+          
+          let centerR = 0, centerG = 0, centerB = 0; // Fallback
+          let centerCount = 0;
 
-          // Dynamically sample areas that deviate from tissue (finding the actual mucus)
           for (const p of allPixels) {
             const dx = p.x - (size / 2);
             const dy = p.y - (size / 2);
             const dist = Math.sqrt(dx*dx + dy*dy);
             
-            // Difference from tissue baseline (opacity/color indicator)
+            // Distance from background color
             const colorDist = Math.sqrt(
-              Math.pow(p.r - tissueRGB.r, 2) + 
-              Math.pow(p.g - tissueRGB.g, 2) + 
-              Math.pow(p.b - tissueRGB.b, 2)
+              Math.pow(p.r - bgRGB.r, 2) + 
+              Math.pow(p.g - bgRGB.g, 2) + 
+              Math.pow(p.b - bgRGB.b, 2)
             );
 
-            // Specular Reflection (Glassy clear mucus glare)
-            const isSpecular = (p.r > 230 && p.g > 230 && p.b > 230) && colorDist < 25;
+            // Specular/Glare: Very bright pixels
+            const isSpecular = p.r > 220 && p.g > 220 && p.b > 220;
             
-            // Opaque / Solid (Significantly darker or colored compared to tissue)
-            const isOpaque = colorDist > 30 && !isSpecular;
+            // Opaque Substance: Deviates from background color AND is not just white glare
+            const isOpaque = colorDist > 35 && !isSpecular;
 
             if (isSpecular) specularCount++;
-            if (isOpaque) opaqueCount++;
+            
+            if (isOpaque) {
+              opaqueCount++;
+              opaqueR += p.r;
+              opaqueG += p.g;
+              opaqueB += p.b;
+            }
 
-            // Include in main color calculation if near center OR clearly opaque/colored
-            if (dist < size * 0.3 || isOpaque) {
-              totalR += p.r;
-              totalG += p.g;
-              totalB += p.b;
-              pixelCount++;
-              colorDeviationSum += colorDist;
+            if (dist < size * 0.4) {
+              centerR += p.r; centerG += p.g; centerB += p.b;
+              centerCount++;
             }
           }
 
-          if (pixelCount === 0) {
-            // Fallback
-            totalR = tissueRGB.r; totalG = tissueRGB.g; totalB = tissueRGB.b; pixelCount = 1;
-          }
+          const totalPixels = allPixels.length;
+          const specularPct = (specularCount / totalPixels) * 100;
+          const opaquePct = (opaqueCount / totalPixels) * 100;
 
-          const avgR = totalR / pixelCount;
-          const avgG = totalG / pixelCount;
-          const avgB = totalB / pixelCount;
+          // Determine the dominant color of the SUBSTANCE (not the background)
+          const useOpaqueColor = opaquePct > 8; // If at least 8% of the image is a distinct substance
+          const avgR = useOpaqueColor ? (opaqueR / opaqueCount) : (centerR / centerCount);
+          const avgG = useOpaqueColor ? (opaqueG / opaqueCount) : (centerG / centerCount);
+          const avgB = useOpaqueColor ? (opaqueB / opaqueCount) : (centerB / centerCount);
 
           const rAvg = avgR / 255, gAvg = avgG / 255, bAvg = avgB / 255;
           const max = Math.max(rAvg, gAvg, bAvg), min = Math.min(rAvg, gAvg, bAvg);
@@ -204,15 +207,24 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
           s = Math.round(s * 100);
           l = Math.round(l * 100);
 
+          console.log(`[MucusScan v8.1] BG: [${Math.round(bgRGB.r)},${Math.round(bgRGB.g)},${Math.round(bgRGB.b)}], Specular: ${specularPct.toFixed(1)}%, Opaque: ${opaquePct.toFixed(1)}%, Substance HSL: [${h},${s}%,${l}%]`);
+
           let matched = null;
           let isGreyZone = false;
 
-          // 1. Black / Dark check
-          if (l <= 25) {
+          // 1. CLEAR CHECK FIRST!
+          // If there is very little opaque substance that deviates from the background, 
+          // it means the image is just background (e.g. finger) + wet glare.
+          if (opaquePct < 8) {
+             matched = MUCUS_COLORS.find(c => c.id === 'clear');
+          }
+
+          // 2. Black / Dark check
+          if (!matched && l <= 25) {
             matched = MUCUS_COLORS.find(c => c.id === 'black');
           } 
           
-          // 2. HUE-based classification (Green, Yellow, Brown/Red)
+          // 3. HUE-based classification (Green, Yellow, Brown/Red)
           if (!matched) {
             for (const mc of MUCUS_COLORS) {
               if (!mc.hueRange) continue;
@@ -226,39 +238,18 @@ export const analyzeMucusColorImage = (file, userSelectedColor = null, questionn
             }
           }
 
-          // 3. Ultra-Accurate Clear vs White logic (Dynamic Baseline v8)
+          // 4. White vs Clear Fallback (if hue didn't match distinct colors)
           if (!matched) {
-            const totalPixels = allPixels.length;
-            const specularPct = (specularCount / totalPixels) * 100;
-            const opaquePct = (opaqueCount / totalPixels) * 100;
-            const avgDeviation = colorDeviationSum / pixelCount;
-
-            console.log(`[MucusScan v8] Tissue: [${Math.round(tissueRGB.r)},${Math.round(tissueRGB.g)},${Math.round(tissueRGB.b)}], Specular: ${specularPct.toFixed(2)}%, Opaque: ${opaquePct.toFixed(2)}%, AvgDev: ${avgDeviation.toFixed(1)}`);
-
-            // Clear Traits: Glare present, low opacity, color is very close to tissue
-            const isDefinitiveClear = specularPct > 0.5 && opaquePct < 15 && avgDeviation < 35;
-            
-            // White Traits: High opacity/shadows, blocks the tissue color, low glare
-            const isDefinitiveWhite = opaquePct > 20 || avgDeviation > 40;
-
-            if (isDefinitiveClear && !isDefinitiveWhite) {
-               matched = MUCUS_COLORS.find(c => c.id === 'clear');
-            } else if (isDefinitiveWhite) {
+            if (opaquePct > 12) {
                matched = MUCUS_COLORS.find(c => c.id === 'white');
             } else {
-               // Grey Area - Rely heavily on User Input if ambiguous
+               matched = MUCUS_COLORS.find(c => c.id === 'clear');
+            }
+            
+            // Grey area handling: if user explicitly selected clear/white, respect it in borderline cases
+            if (userSelectedColor && (userSelectedColor.id === 'clear' || userSelectedColor.id === 'white')) {
                isGreyZone = true;
-               if (userSelectedColor) {
-                 if (userSelectedColor.id === 'clear' || userSelectedColor.id === 'white') {
-                   matched = MUCUS_COLORS.find(c => c.id === userSelectedColor.id);
-                 } else {
-                   // Fallback for user error
-                   matched = MUCUS_COLORS.find(c => c.id === 'clear'); 
-                 }
-               } else {
-                 // No user hint, strictly check opacity
-                 matched = opaquePct > 12 ? MUCUS_COLORS.find(c => c.id === 'white') : MUCUS_COLORS.find(c => c.id === 'clear');
-               }
+               matched = MUCUS_COLORS.find(c => c.id === userSelectedColor.id);
             }
           }
 
