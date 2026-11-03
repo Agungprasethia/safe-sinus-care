@@ -6,12 +6,12 @@ const TECHNIQUES = {
   box: {
     id: 'box',
     name: 'Box Breathing (4-4-4-4)',
-    description: 'Inhale for 4s, Hold for 4s, Exhale for 4s, Hold for 4s. Helps clear your mind, relax your body, and improve focus.',
+    description: 'Inhale for 4s, Hold for 4s, Exhale for 4s, Relaxed for 4s. Helps clear your mind, relax your body, and improve focus.',
     cycle: [
       { phase: 'INHALE', duration: 4 },
       { phase: 'HOLD', duration: 4 },
       { phase: 'EXHALE', duration: 4 },
-      { phase: 'HOLD', duration: 4 }
+      { phase: 'RELAXED', duration: 4 }
     ],
     totalCycles: 4
   },
@@ -165,6 +165,7 @@ const BreathingModal = () => {
     if (displayPhase === 'INHALE') phaseColor = '#3B82F6';
     else if (displayPhase === 'HOLD') phaseColor = '#F59E0B';
     else if (displayPhase === 'EXHALE') phaseColor = '#10B981';
+    else if (displayPhase === 'RELAXED') phaseColor = '#8B5CF6';
   }
 
   // Progress ring calculations
