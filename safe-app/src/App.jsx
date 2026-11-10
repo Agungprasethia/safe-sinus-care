@@ -3,6 +3,8 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import FeatureGrid from './components/FeatureGrid';
 import ModalWrapper from './components/modals/ModalWrapper';
+import UserGuide from './components/UserGuide';
+import Footer from './components/Footer';
 
 // Modal Components to be imported
 import RiskAssessmentModal from './components/modals/RiskAssessmentModal';
@@ -51,8 +53,13 @@ function App() {
         <section className="container" style={{ padding: '2rem 0.5rem' }} id="articles-section">
           <ArticlesModal />
         </section>
+        <section className="container" style={{ padding: '2rem 0.5rem' }} id="user-guide-section">
+          <UserGuide openModal={openModal} />
+        </section>
       </main>
       
+      <Footer openModal={openModal} />
+
       <ModalWrapper isOpen={activeModal !== null} onClose={closeModal}>
         {renderModalContent()}
       </ModalWrapper>
