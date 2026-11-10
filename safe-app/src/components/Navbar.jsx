@@ -71,11 +71,6 @@ const Navbar = ({ openModal }) => {
               Articles
             </button>
           </li>
-          <li>
-            <button className="nav-btn" onClick={() => document.getElementById('user-guide-section')?.scrollIntoView({ behavior: 'smooth' })}>
-              User Guide
-            </button>
-          </li>
         </ul>
       </div>
 
@@ -101,11 +96,6 @@ const Navbar = ({ openModal }) => {
             <li>
               <button className="mobile-nav-btn" onClick={() => handleNavClick(() => document.getElementById('articles-section')?.scrollIntoView({ behavior: 'smooth' }))}>
                 📰 Articles
-              </button>
-            </li>
-            <li>
-              <button className="mobile-nav-btn" onClick={() => handleNavClick(() => document.getElementById('user-guide-section')?.scrollIntoView({ behavior: 'smooth' }))}>
-                📖 User Guide
               </button>
             </li>
           </ul>
