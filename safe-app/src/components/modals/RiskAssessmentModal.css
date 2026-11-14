@@ -826,3 +826,35 @@
   flex-shrink: 0;
   box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
 }
+
+/* Clarity Notice for Mucus Photo Upload */
+.mucus-clarity-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid var(--primary, #2563eb);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-dark, #1e293b);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+.mucus-clarity-notice svg {
+  color: var(--primary, #2563eb);
+  flex-shrink: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mucus-clarity-notice {
+    background-color: #1e293b;
+    border-color: #334155;
+    border-left-color: #60a5fa;
+    color: #f8fafc;
+  }
+}
+

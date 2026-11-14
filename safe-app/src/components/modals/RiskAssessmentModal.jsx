@@ -492,6 +492,11 @@ const RiskAssessmentModal = () => {
               </div>
             </div>
 
+            <div className="mucus-clarity-notice">
+              <Info size={18} />
+              <span>Pay attention to the lighting and image clarity</span>
+            </div>
+
             <div className="card" style={{padding: '1.5rem', marginBottom: '1.5rem'}}>
               <h3>2. Upload Mucus Photo</h3>
               
