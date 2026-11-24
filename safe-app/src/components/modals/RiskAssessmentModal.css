@@ -120,6 +120,15 @@
   color: var(--success, #22c55e);
 }
 
+.step-item.locked {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.step-item.locked:hover {
+  background-color: transparent;
+}
+
 /* Hide step labels on very small screens, show just numbers */
 @media (max-width: 479px) {
   .step-item .step-label {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw } from 'lucide-react';
 import './RiskAssessmentModal.css';
 import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusLogic';
@@ -73,6 +73,14 @@ const RiskAssessmentModal = () => {
 
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const contentRef = useRef(null);
+
+  // Scroll to top of content area whenever step changes
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step]);
 
   const STEPS = ["Symptoms", "Lifestyle", "Environment", "Mucus Scan", "Results"];
   const totalAnswered = Object.keys(answers.symptoms).length + Object.keys(answers.lifestyle).length + Object.keys(answers.environmental).length + (answers.mucusResult ? 1 : 0);
@@ -418,8 +426,8 @@ const RiskAssessmentModal = () => {
             {STEPS.map((s, i) => (
               <div 
                 key={i} 
-                className={`step-item ${step > i ? 'completed' : ''} ${step === i + 1 ? 'current' : ''}`}
-                onClick={() => setStep(i + 1)}
+                className={`step-item ${step > i ? 'completed' : ''} ${step === i + 1 ? 'current' : ''} ${i + 1 > step ? 'locked' : ''}`}
+                onClick={() => { if (i + 1 <= step) setStep(i + 1); }}
               >
                 <div className="step-number">{i + 1}</div>
                 <div className="step-label">{s}</div>
@@ -429,7 +437,7 @@ const RiskAssessmentModal = () => {
         </div>
 
         {/* Main Content */}
-        <div className="risk-content">
+        <div className="risk-content" ref={contentRef}>
         {step === 1 && (
           <div className="question-slide animate-slide-in">
             <h2 className="slide-title">Symptom Assessment</h2>
