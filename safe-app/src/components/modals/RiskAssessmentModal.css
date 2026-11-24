@@ -129,6 +129,73 @@
   background-color: transparent;
 }
 
+/* Warning notification banner */
+.step-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  margin-top: 1rem;
+  background-color: #FEF3C7;
+  border: 1px solid #F59E0B;
+  border-radius: var(--radius-md, 8px);
+  color: #92400E;
+  font-size: 0.875rem;
+  font-weight: 500;
+  animation: warningSlideIn 0.3s ease-out;
+}
+
+.step-warning-banner svg {
+  flex-shrink: 0;
+  color: #F59E0B;
+}
+
+.step-warning-banner span {
+  flex: 1;
+}
+
+.step-warning-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #92400E;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.step-warning-close:hover {
+  opacity: 1;
+}
+
+@keyframes warningSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .step-warning-banner {
+    background-color: #78350F;
+    border-color: #D97706;
+    color: #FDE68A;
+  }
+  .step-warning-banner svg {
+    color: #FBBF24;
+  }
+  .step-warning-close {
+    color: #FDE68A;
+  }
+}
+
 /* Hide step labels on very small screens, show just numbers */
 @media (max-width: 479px) {
   .step-item .step-label {

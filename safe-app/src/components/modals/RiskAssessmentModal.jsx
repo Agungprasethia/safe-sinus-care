@@ -70,6 +70,7 @@ const RiskAssessmentModal = () => {
   });
   const [isScanningMucus, setIsScanningMucus] = useState(false);
   const [mucusScanError, setMucusScanError] = useState(null);
+  const [stepWarning, setStepWarning] = useState(null);
 
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -80,7 +81,25 @@ const RiskAssessmentModal = () => {
     if (contentRef.current) {
       contentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    setStepWarning(null);
   }, [step]);
+
+  // Auto-dismiss warning after 4 seconds
+  useEffect(() => {
+    if (stepWarning) {
+      const timer = setTimeout(() => setStepWarning(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [stepWarning]);
+
+  const handleNext = (nextStep, isComplete, totalQ, answeredQ) => {
+    if (!isComplete) {
+      const remaining = totalQ - answeredQ;
+      setStepWarning(`Please answer all questions before proceeding. You have ${remaining} unanswered question${remaining > 1 ? 's' : ''}.`);
+      return;
+    }
+    setStep(nextStep);
+  };
 
   const STEPS = ["Symptoms", "Lifestyle", "Environment", "Mucus Scan", "Results"];
   const totalAnswered = Object.keys(answers.symptoms).length + Object.keys(answers.lifestyle).length + Object.keys(answers.environmental).length + (answers.mucusResult ? 1 : 0);
@@ -466,13 +485,21 @@ const RiskAssessmentModal = () => {
             <div className="slide-actions slide-actions-right">
               <button 
                 className="btn btn-primary" 
-                onClick={() => setStep(2)}
-                disabled={!isStep1Complete}
-                style={{ opacity: isStep1Complete ? 1 : 0.5, cursor: isStep1Complete ? 'pointer' : 'not-allowed' }}
+                onClick={() => handleNext(2, isStep1Complete, SYMPTOMS.length, Object.keys(answers.symptoms).length)}
               >
                 Next <ChevronRight size={20} />
               </button>
             </div>
+
+            {stepWarning && (
+              <div className="step-warning-banner">
+                <AlertTriangle size={18} />
+                <span>{stepWarning}</span>
+                <button className="step-warning-close" onClick={() => setStepWarning(null)}>
+                  <X size={16} />
+                </button>
+              </div>
+            )}
 
             <div className="slide-footer text-light">
               <p>"This result is for screening purposes only and is not a medical diagnosis."</p>
@@ -511,13 +538,21 @@ const RiskAssessmentModal = () => {
               </button>
               <button 
                 className="btn btn-primary" 
-                onClick={() => setStep(3)}
-                disabled={!isStep2Complete}
-                style={{ opacity: isStep2Complete ? 1 : 0.5, cursor: isStep2Complete ? 'pointer' : 'not-allowed' }}
+                onClick={() => handleNext(3, isStep2Complete, LIFESTYLE_QUESTIONS.length, Object.keys(answers.lifestyle).length)}
               >
                 Next <ChevronRight size={20} />
               </button>
             </div>
+
+            {stepWarning && (
+              <div className="step-warning-banner">
+                <AlertTriangle size={18} />
+                <span>{stepWarning}</span>
+                <button className="step-warning-close" onClick={() => setStepWarning(null)}>
+                  <X size={16} />
+                </button>
+              </div>
+            )}
             
             <div className="slide-footer text-light">
               <p>"This result is for screening purposes only and is not a medical diagnosis."</p>
@@ -556,13 +591,21 @@ const RiskAssessmentModal = () => {
               </button>
               <button 
                 className="btn btn-primary" 
-                onClick={() => setStep(4)}
-                disabled={!isStep3Complete}
-                style={{ opacity: isStep3Complete ? 1 : 0.5, cursor: isStep3Complete ? 'pointer' : 'not-allowed' }}
+                onClick={() => handleNext(4, isStep3Complete, ENVIRONMENTAL.length, Object.keys(answers.environmental).length)}
               >
                 Next <ChevronRight size={20} />
               </button>
             </div>
+
+            {stepWarning && (
+              <div className="step-warning-banner">
+                <AlertTriangle size={18} />
+                <span>{stepWarning}</span>
+                <button className="step-warning-close" onClick={() => setStepWarning(null)}>
+                  <X size={16} />
+                </button>
+              </div>
+            )}
             
             <div className="slide-footer text-light">
               <p>"This result is for screening purposes only and is not a medical diagnosis."</p>
@@ -678,13 +721,27 @@ const RiskAssessmentModal = () => {
               </button>
               <button 
                 className="btn btn-primary" 
-                onClick={() => setStep(5)}
-                disabled={!isStep4Complete}
-                style={{ opacity: isStep4Complete ? 1 : 0.5, cursor: isStep4Complete ? 'pointer' : 'not-allowed' }}
+                onClick={() => {
+                  if (!isStep4Complete) {
+                    setStepWarning('Please complete the mucus color scan before viewing results.');
+                    return;
+                  }
+                  setStep(5);
+                }}
               >
                 See Results <ChevronRight size={20} />
               </button>
             </div>
+
+            {stepWarning && (
+              <div className="step-warning-banner">
+                <AlertTriangle size={18} />
+                <span>{stepWarning}</span>
+                <button className="step-warning-close" onClick={() => setStepWarning(null)}>
+                  <X size={16} />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
