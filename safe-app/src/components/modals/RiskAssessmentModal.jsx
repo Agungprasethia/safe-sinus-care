@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw, Share2 } from 'lucide-react';
 import './RiskAssessmentModal.css';
 import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusLogic';
 import { jsPDF } from 'jspdf';
@@ -218,7 +218,7 @@ const RiskAssessmentModal = () => {
     alert('Assessment saved successfully! You can view it in the History Scan section.');
   };
 
-  const downloadResult = () => {
+  const generatePDF = () => {
     const sScore = calcSymptomsPoints();
     const lScore = calcLifestylePoints();
     const eScore = calcEnvPoints();
@@ -370,8 +370,49 @@ const RiskAssessmentModal = () => {
       8.5, 'italic', [148, 163, 184]
     );
 
-    // Save PDF
+    return { doc, now };
+  };
+
+  const downloadResult = () => {
+    const { doc, now } = generatePDF();
     doc.save(`SAFE_Assessment_${now.toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const shareResult = async () => {
+    const { doc, now } = generatePDF();
+    const fileName = `SAFE_Assessment_${now.toISOString().slice(0, 10)}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    // Check if Web Share API supports file sharing
+    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      try {
+        await navigator.share({
+          title: 'S.A.F.E. Assessment Result',
+          text: `Sinus Risk Assessment - ${getClassification()} (Score: ${calcFinalScore()}/195)`,
+          files: [pdfFile]
+        });
+      } catch (err) {
+        // User cancelled the share dialog — not an error
+        if (err.name !== 'AbortError') {
+          // Fallback: download instead
+          doc.save(fileName);
+        }
+      }
+    } else {
+      // Fallback for browsers that don't support file sharing
+      // Open WhatsApp with text summary + download PDF
+      const score = calcFinalScore();
+      const cls = getClassification();
+      const text = encodeURIComponent(
+        `📋 *S.A.F.E. Assessment Result*\n\n` +
+        `Classification: *${cls}*\n` +
+        `Final Score: ${score} / 195\n\n` +
+        `_Please check the downloaded PDF for full details._`
+      );
+      doc.save(fileName);
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    }
   };
 
   const resetAssessment = () => {
@@ -812,7 +853,8 @@ const RiskAssessmentModal = () => {
 
             <div className="results-actions flex justify-center gap-4 mt-6">
               <button className="btn btn-primary" onClick={saveAssessment}><Save size={18} /> Save Assessment</button>
-              <button className="btn btn-secondary" onClick={downloadResult}><Download size={18} /> Download Result</button>
+              <button className="btn btn-secondary" onClick={downloadResult}><Download size={18} /> Download PDF</button>
+              <button className="btn btn-success" onClick={shareResult}><Share2 size={18} /> Share Result</button>
               <button className="btn btn-outline" onClick={resetAssessment}><RefreshCcw size={18} /> Retake Assessment</button>
             </div>
           </div>

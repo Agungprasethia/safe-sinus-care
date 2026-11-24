@@ -569,6 +569,31 @@
   }
 }
 
+/* Share button (green/WhatsApp style) */
+.btn-success {
+  background-color: #25D366;
+  color: #fff;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-md, 8px);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn-success:hover {
+  background-color: #1DA851;
+  transform: translateY(-1px);
+}
+
+.btn-success:active {
+  transform: translateY(0);
+}
+
 /* ========================================
    MUCUS COLOR SCAN STYLES
    ======================================== */
