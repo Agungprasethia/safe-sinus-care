@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw } from 'lucide-react';
 import './RiskAssessmentModal.css';
 import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusLogic';
+import { jsPDF } from 'jspdf';
 
 
 
@@ -186,7 +187,7 @@ const RiskAssessmentModal = () => {
     const existingHistory = JSON.parse(localStorage.getItem('sinus_assessment_history') || '[]');
     const updatedHistory = [newEntry, ...existingHistory];
     localStorage.setItem('sinus_assessment_history', JSON.stringify(updatedHistory));
-    
+
     alert('Assessment saved successfully! You can view it in the History Scan section.');
   };
 
@@ -198,47 +199,152 @@ const RiskAssessmentModal = () => {
     const finalScore = calcFinalScore();
     const classification = getClassification();
     const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    let report = `S.A.F.E. — Sinus Risk Assessment Report\n`;
-    report += `========================================\n`;
-    report += `Date: ${now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`;
-    report += `Time: ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}\n\n`;
-    report += `CLASSIFICATION: ${classification}\n`;
-    report += `FINAL SCORE: ${finalScore} / 195\n\n`;
-    report += `--- Scores ---\n`;
-    report += `Clinical Symptoms:    ${sScore} / 150\n`;
-    report += `Lifestyle Factors:     ${lScore} / 15\n`;
-    report += `Environmental Factors: ${eScore} / 28\n`;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    // Helper: add text and auto-advance Y, with page-break support
+    const addText = (text, size = 10, style = 'normal', color = [30, 41, 59]) => {
+      doc.setFontSize(size);
+      doc.setFont('helvetica', style);
+      doc.setTextColor(...color);
+      const lines = doc.splitTextToSize(text, contentWidth);
+      if (y + lines.length * size * 0.5 > 275) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(lines, margin, y);
+      y += lines.length * size * 0.45 + 2;
+    };
+
+    const addLine = () => {
+      doc.setDrawColor(226, 232, 240);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 6;
+    };
+
+    // ── Header ──
+    doc.setFillColor(37, 99, 235);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('S.A.F.E.', margin, 18);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Sinus Assessment & Prevention Ecosystem', margin, 26);
+    doc.setFontSize(9);
+    doc.text(`Report generated: ${dateStr} at ${timeStr}`, margin, 34);
+    y = 52;
+
+    // ── Classification Banner ──
+    const isSinus = classification === 'SINUS';
+    doc.setFillColor(isSinus ? 254 : 240, isSinus ? 226 : 253, isSinus ? 226 : 244);
+    doc.roundedRect(margin, y - 6, contentWidth, 28, 3, 3, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('CLASSIFICATION', margin + 8, y + 2);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(isSinus ? 239 : 34, isSinus ? 68 : 197, isSinus ? 68 : 94);
+    doc.text(classification, margin + 8, y + 14);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(`Final Score: ${finalScore} / 195`, pageWidth - margin - 8, y + 10, { align: 'right' });
+    y += 32;
+
+    // ── Score Breakdown ──
+    addText('Score Breakdown', 14, 'bold', [37, 99, 235]);
+    y += 2;
+
+    const scores = [
+      { label: 'Clinical Symptoms', score: sScore, max: 150 },
+      { label: 'Lifestyle Factors', score: lScore, max: 15 },
+      { label: 'Environmental Factors', score: eScore, max: 28 }
+    ];
     if (answers.mucusResult) {
-      const finalMucusLabel = answers.mucusResult.isGreyZone && answers.mucusColor 
-        ? answers.mucusColor.label 
+      const finalMucusLabel = answers.mucusResult.isGreyZone && answers.mucusColor
+        ? answers.mucusColor.label
         : answers.mucusResult.detectedColor.label;
-      report += `Mucus Color Scan:      ${mScore} / 2 (${finalMucusLabel})\n`;
+      scores.push({ label: `Mucus Color (${finalMucusLabel})`, score: mScore, max: 2 });
     }
-    report += `\n--- Symptom Answers ---\n`;
-    SYMPTOMS.forEach((s, i) => {
-      report += `  ${s}: ${answers.symptoms[i] || 'Not answered'}\n`;
-    });
-    report += `\n--- Lifestyle Answers ---\n`;
-    LIFESTYLE_QUESTIONS.forEach((q, i) => {
-      report += `  ${q.question}: ${answers.lifestyle[i] || 'Not answered'}\n`;
-    });
-    report += `\n--- Environmental Answers ---\n`;
-    ENVIRONMENTAL.forEach((e, i) => {
-      report += `  ${e}: ${answers.environmental[i] || 'Not answered'}\n`;
-    });
-    report += `\n========================================\n`;
-    report += `Disclaimer: This result is for screening purposes only and is not a medical diagnosis.\n`;
 
-    const blob = new Blob([report], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `SAFE_Assessment_${now.toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    scores.forEach(({ label, score, max }) => {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      doc.text(label, margin, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(`${score} / ${max}`, pageWidth - margin, y, { align: 'right' });
+
+      // Progress bar
+      y += 4;
+      const barWidth = contentWidth;
+      const barHeight = 5;
+      const fillPercent = Math.min(score / max, 1);
+      doc.setFillColor(226, 232, 240);
+      doc.roundedRect(margin, y, barWidth, barHeight, 2, 2, 'F');
+      if (fillPercent > 0) {
+        doc.setFillColor(37, 99, 235);
+        doc.roundedRect(margin, y, barWidth * fillPercent, barHeight, 2, 2, 'F');
+      }
+      y += 10;
+    });
+
+    y += 4;
+    addLine();
+
+    // ── Symptom Answers ──
+    addText('Symptom Responses', 14, 'bold', [37, 99, 235]);
+    y += 1;
+    SYMPTOMS.forEach((s, i) => {
+      const answer = answers.symptoms[i] || 'Not answered';
+      addText(`•  ${s}:  ${answer}`, 9.5, 'normal', [51, 65, 85]);
+    });
+
+    y += 4;
+    addLine();
+
+    // ── Lifestyle Answers ──
+    addText('Lifestyle Responses', 14, 'bold', [37, 99, 235]);
+    y += 1;
+    LIFESTYLE_QUESTIONS.forEach((q, i) => {
+      const answer = answers.lifestyle[i] || 'Not answered';
+      addText(`•  ${q.question}:  ${answer}`, 9.5, 'normal', [51, 65, 85]);
+    });
+
+    y += 4;
+    addLine();
+
+    // ── Environmental Answers ──
+    addText('Environmental Responses', 14, 'bold', [37, 99, 235]);
+    y += 1;
+    ENVIRONMENTAL.forEach((e, i) => {
+      const answer = answers.environmental[i] || 'Not answered';
+      addText(`•  ${e}:  ${answer}`, 9.5, 'normal', [51, 65, 85]);
+    });
+
+    y += 8;
+    addLine();
+
+    // ── Disclaimer ──
+    addText('Disclaimer', 11, 'bold', [100, 116, 139]);
+    addText(
+      'This result is generated by S.A.F.E. (Sinus Assessment & Prevention Ecosystem) for screening purposes only. ' +
+      'It is not a medical diagnosis. Please consult an ENT specialist or qualified physician for professional medical advice.',
+      8.5, 'italic', [148, 163, 184]
+    );
+
+    // Save PDF
+    doc.save(`SAFE_Assessment_${now.toISOString().slice(0, 10)}.pdf`);
   };
 
   const resetAssessment = () => {
