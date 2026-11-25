@@ -19,6 +19,7 @@ export const sendAssessmentEmail = (data) => {
   }
 
   const templateParams = {
+    to_email: 'igstmadeagung3@gmail.com',
     date: data.date,
     time: data.time,
     classification: data.classification,
