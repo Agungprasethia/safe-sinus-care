@@ -569,9 +569,9 @@
   }
 }
 
-/* Share button (green/WhatsApp style) */
-.btn-success {
-  background-color: #25D366;
+/* Email button (Gmail Red / Accent style) */
+.btn-email {
+  background-color: #EA4335;
   color: #fff;
   border: none;
   display: inline-flex;
@@ -585,13 +585,19 @@
   transition: background-color 0.2s, transform 0.1s;
 }
 
-.btn-success:hover {
-  background-color: #1DA851;
+.btn-email:hover {
+  background-color: #D93025;
   transform: translateY(-1px);
 }
 
-.btn-success:active {
+.btn-email:active {
   transform: translateY(0);
+}
+
+.btn-email:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* ========================================

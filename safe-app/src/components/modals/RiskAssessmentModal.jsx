@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw, Share2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw, Mail } from 'lucide-react';
 import './RiskAssessmentModal.css';
 import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusLogic';
 import { jsPDF } from 'jspdf';
@@ -72,6 +72,7 @@ const RiskAssessmentModal = () => {
   const [isScanningMucus, setIsScanningMucus] = useState(false);
   const [mucusScanError, setMucusScanError] = useState(null);
   const [stepWarning, setStepWarning] = useState(null);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -215,14 +216,6 @@ const RiskAssessmentModal = () => {
     const existingHistory = JSON.parse(localStorage.getItem('sinus_assessment_history') || '[]');
     const updatedHistory = [newEntry, ...existingHistory];
     localStorage.setItem('sinus_assessment_history', JSON.stringify(updatedHistory));
-
-    // Send assessment result via email (fire-and-forget, non-blocking)
-    sendAssessmentEmail({
-      ...newEntry,
-      symptomAnswers: SYMPTOMS.map((s, i) => `${s}: ${answers.symptoms[i] || 'N/A'}`).join('\n'),
-      lifestyleAnswers: LIFESTYLE_QUESTIONS.map((q, i) => `${q.question}: ${answers.lifestyle[i] || 'N/A'}`).join('\n'),
-      environmentalAnswers: ENVIRONMENTAL.map((e, i) => `${e}: ${answers.environmental[i] || 'N/A'}`).join('\n')
-    });
 
     alert('Assessment saved successfully! You can view it in the History Scan section.');
   };
@@ -387,40 +380,48 @@ const RiskAssessmentModal = () => {
     doc.save(`SAFE_Assessment_${now.toISOString().slice(0, 10)}.pdf`);
   };
 
-  const shareResult = async () => {
-    const { doc, now } = generatePDF();
-    const fileName = `SAFE_Assessment_${now.toISOString().slice(0, 10)}.pdf`;
-    const pdfBlob = doc.output('blob');
-    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
-
-    // Check if Web Share API supports file sharing
-    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-      try {
-        await navigator.share({
-          title: 'S.A.F.E. Assessment Result',
-          text: `Sinus Risk Assessment - ${getClassification()} (Score: ${calcFinalScore()}/195)`,
-          files: [pdfFile]
-        });
-      } catch (err) {
-        // User cancelled the share dialog — not an error
-        if (err.name !== 'AbortError') {
-          // Fallback: download instead
-          doc.save(fileName);
-        }
+  const handleSendEmail = async () => {
+    setIsSendingEmail(true);
+    try {
+      const finalScore = calcFinalScore();
+      const classification = getClassification();
+      const now = new Date();
+      let finalMucusLabel = null;
+      if (answers.mucusResult) {
+        finalMucusLabel = answers.mucusResult.isGreyZone && answers.mucusColor 
+          ? answers.mucusColor.label 
+          : answers.mucusResult.detectedColor.label;
       }
-    } else {
-      // Fallback for browsers that don't support file sharing
-      // Open WhatsApp with text summary + download PDF
-      const score = calcFinalScore();
-      const cls = getClassification();
-      const text = encodeURIComponent(
-        `📋 *S.A.F.E. Assessment Result*\n\n` +
-        `Classification: *${cls}*\n` +
-        `Final Score: ${score} / 195\n\n` +
-        `_Please check the downloaded PDF for full details._`
-      );
-      doc.save(fileName);
-      window.open(`https://wa.me/?text=${text}`, '_blank');
+      
+      const payload = {
+        date: now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        classification: classification,
+        finalScore: finalScore,
+        maxScore: 195,
+        scores: {
+          symptoms: calcSymptomsPoints(),
+          lifestyle: calcLifestylePoints(),
+          environmental: calcEnvPoints(),
+          mucus: calcMucusPoints()
+        },
+        mucusColorLabel: finalMucusLabel,
+        symptomAnswers: SYMPTOMS.map((s, i) => `${s}: ${answers.symptoms[i] || 'N/A'}`).join('\n'),
+        lifestyleAnswers: LIFESTYLE_QUESTIONS.map((q, i) => `${q.question}: ${answers.lifestyle[i] || 'N/A'}`).join('\n'),
+        environmentalAnswers: ENVIRONMENTAL.map((e, i) => `${e}: ${answers.environmental[i] || 'N/A'}`).join('\n')
+      };
+
+      const res = await sendAssessmentEmail(payload);
+      if (res && res.fallback) {
+        // Mail client opened
+      } else {
+        alert('Assessment result sent successfully to igstmadeagung3@gmail.com!');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send email. Please check your connection or download the PDF.');
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -863,7 +864,9 @@ const RiskAssessmentModal = () => {
             <div className="results-actions flex justify-center gap-4 mt-6">
               <button className="btn btn-primary" onClick={saveAssessment}><Save size={18} /> Save Assessment</button>
               <button className="btn btn-secondary" onClick={downloadResult}><Download size={18} /> Download PDF</button>
-              <button className="btn btn-success" onClick={shareResult}><Share2 size={18} /> Share Result</button>
+              <button className="btn btn-email" onClick={handleSendEmail} disabled={isSendingEmail}>
+                <Mail size={18} /> {isSendingEmail ? 'Sending...' : 'Send to Email'}
+              </button>
               <button className="btn btn-outline" onClick={resetAssessment}><RefreshCcw size={18} /> Retake Assessment</button>
             </div>
           </div>
