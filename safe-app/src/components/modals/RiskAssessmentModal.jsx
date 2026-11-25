@@ -3,6 +3,7 @@ import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Ca
 import './RiskAssessmentModal.css';
 import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusLogic';
 import { jsPDF } from 'jspdf';
+import { sendAssessmentEmail } from './emailHelper';
 
 
 
@@ -214,6 +215,14 @@ const RiskAssessmentModal = () => {
     const existingHistory = JSON.parse(localStorage.getItem('sinus_assessment_history') || '[]');
     const updatedHistory = [newEntry, ...existingHistory];
     localStorage.setItem('sinus_assessment_history', JSON.stringify(updatedHistory));
+
+    // Send assessment result via email (fire-and-forget, non-blocking)
+    sendAssessmentEmail({
+      ...newEntry,
+      symptomAnswers: SYMPTOMS.map((s, i) => `${s}: ${answers.symptoms[i] || 'N/A'}`).join('\n'),
+      lifestyleAnswers: LIFESTYLE_QUESTIONS.map((q, i) => `${q.question}: ${answers.lifestyle[i] || 'N/A'}`).join('\n'),
+      environmentalAnswers: ENVIRONMENTAL.map((e, i) => `${e}: ${answers.environmental[i] || 'N/A'}`).join('\n')
+    });
 
     alert('Assessment saved successfully! You can view it in the History Scan section.');
   };
