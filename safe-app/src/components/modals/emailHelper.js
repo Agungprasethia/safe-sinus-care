@@ -3,8 +3,73 @@ import emailjs from '@emailjs/browser';
 const TARGET_EMAIL = 'igstmadeagung3@gmail.com';
 
 /**
- * Format assessment data into a clear, clinical screening report for medical doctors.
+ * Build clean WhatsApp-formatted clinical report with markdown bolding & emojis.
  */
+export function buildWhatsAppReport(data) {
+  const {
+    date, time, classification, finalScore, maxScore, scores, mucusColorLabel,
+    symptoms = {}, environmental = {},
+    symptomsList = [], environmentalList = []
+  } = data;
+
+  const isSinusRisk = classification === 'SINUS';
+
+  const highSymptoms = [];
+  const occasionalSymptoms = [];
+
+  symptomsList.forEach((symptom, idx) => {
+    const val = symptoms[idx] || 'Not answered';
+    if (val === 'Very Often' || val === 'Often') {
+      highSymptoms.push(`• *${val.toUpperCase()}:* ${symptom}`);
+    } else if (val === 'Sometimes') {
+      occasionalSymptoms.push(`• ${symptom}`);
+    }
+  });
+
+  const activeTriggers = [];
+  environmentalList.forEach((env, idx) => {
+    const ans = environmental[idx] || 'Never';
+    if (ans !== 'Never') {
+      activeTriggers.push(`• ${env} (${ans})`);
+    }
+  });
+
+  return `🏥 *S.A.F.E. SINUS ASSESSMENT REPORT*
+━━━━━━━━━━━━━━━━━━━━
+📅 *Date:* ${date} at ${time}
+🔬 *Result:* ${isSinusRisk ? '⚠️ *SINUS (HIGH RISK)*' : '✅ *NON-SINUS (LOW RISK)*'}
+📊 *Final Score:* *${finalScore} / ${maxScore}* (Cutoff: >= 114)
+
+📊 *Score Breakdown:*
+• Symptoms: ${scores.symptoms}/150
+• Lifestyle: ${scores.lifestyle}/15
+• Environment: ${scores.environmental}/28
+• Mucus: ${scores.mucus}/2 (${mucusColorLabel || 'Not scanned'})
+
+🚨 *Active / Frequent Symptoms:*
+${highSymptoms.length > 0 ? highSymptoms.join('\n') : '• (None reported)'}
+
+⚠️ *Occasional Symptoms:*
+${occasionalSymptoms.length > 0 ? occasionalSymptoms.join('\n') : '• (None reported)'}
+
+🌿 *Environmental Triggers:*
+${activeTriggers.length > 0 ? activeTriggers.join('\n') : '• (None reported)'}
+
+━━━━━━━━━━━━━━━━━━━━
+_Screening via S.A.F.E. (Sinus Assessment Ecosystem)_
+_Guidelines: EPOS 2020 / NCBI Sinusitis Guidelines_`;
+}
+
+/**
+ * Open WhatsApp with pre-filled clinical assessment text targeted to a specific number.
+ */
+export const sendAssessmentWhatsApp = (data, customNumber) => {
+  const targetNumber = customNumber || import.meta.env.VITE_TARGET_WA_NUMBER || '6281228781681';
+  const cleanNumber = targetNumber.replace(/[^0-9]/g, '');
+  const report = buildWhatsAppReport(data);
+  const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(report)}`;
+  window.open(waUrl, '_blank');
+};
 function buildDoctorReport(data) {
   const {
     date, time, classification, finalScore, maxScore, scores, mucusColorLabel,

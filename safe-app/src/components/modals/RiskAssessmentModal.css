@@ -569,6 +569,31 @@
   }
 }
 
+/* WhatsApp button (WhatsApp Green) */
+.btn-whatsapp {
+  background-color: #25D366;
+  color: #fff;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-md, 8px);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn-whatsapp:hover {
+  background-color: #1DA851;
+  transform: translateY(-1px);
+}
+
+.btn-whatsapp:active {
+  transform: translateY(0);
+}
+
 /* Email button (Gmail Red / Accent style) */
 .btn-email {
   background-color: #EA4335;

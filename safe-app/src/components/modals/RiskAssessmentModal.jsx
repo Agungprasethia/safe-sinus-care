@@ -1,9 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw, Mail } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, Download, RefreshCcw, Save, Camera, Upload, Droplet, X, AlertTriangle, Info, Search, RefreshCw, Mail, MessageCircle } from 'lucide-react';
 import './RiskAssessmentModal.css';
 import { analyzeMucusColorImage, MUCUS_COLORS } from './MucusLogic';
 import { jsPDF } from 'jspdf';
-import { sendAssessmentEmail } from './emailHelper';
+import { sendAssessmentEmail, sendAssessmentWhatsApp } from './emailHelper';
 
 
 
@@ -378,6 +378,41 @@ const RiskAssessmentModal = () => {
   const downloadResult = () => {
     const { doc, now } = generatePDF();
     doc.save(`SAFE_Assessment_${now.toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const handleSendWhatsApp = () => {
+    const finalScore = calcFinalScore();
+    const classification = getClassification();
+    const now = new Date();
+    let finalMucusLabel = null;
+    if (answers.mucusResult) {
+      finalMucusLabel = answers.mucusResult.isGreyZone && answers.mucusColor 
+        ? answers.mucusColor.label 
+        : answers.mucusResult.detectedColor.label;
+    }
+    
+    const payload = {
+      date: now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      classification: classification,
+      finalScore: finalScore,
+      maxScore: 195,
+      scores: {
+        symptoms: calcSymptomsPoints(),
+        lifestyle: calcLifestylePoints(),
+        environmental: calcEnvPoints(),
+        mucus: calcMucusPoints()
+      },
+      mucusColorLabel: finalMucusLabel,
+      symptoms: answers.symptoms,
+      lifestyle: answers.lifestyle,
+      environmental: answers.environmental,
+      symptomsList: SYMPTOMS,
+      lifestyleQuestions: LIFESTYLE_QUESTIONS,
+      environmentalList: ENVIRONMENTAL
+    };
+
+    sendAssessmentWhatsApp(payload);
   };
 
   const handleSendEmail = async () => {
@@ -870,6 +905,9 @@ const RiskAssessmentModal = () => {
             <div className="results-actions flex justify-center gap-4 mt-6">
               <button className="btn btn-primary" onClick={saveAssessment}><Save size={18} /> Save Assessment</button>
               <button className="btn btn-secondary" onClick={downloadResult}><Download size={18} /> Download PDF</button>
+              <button className="btn btn-whatsapp" onClick={handleSendWhatsApp}>
+                <MessageCircle size={18} /> Send to WhatsApp
+              </button>
               <button className="btn btn-email" onClick={handleSendEmail} disabled={isSendingEmail}>
                 <Mail size={18} /> {isSendingEmail ? 'Sending...' : 'Send to Doctor (Email)'}
               </button>
