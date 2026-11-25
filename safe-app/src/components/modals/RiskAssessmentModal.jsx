@@ -406,6 +406,12 @@ const RiskAssessmentModal = () => {
           mucus: calcMucusPoints()
         },
         mucusColorLabel: finalMucusLabel,
+        symptoms: answers.symptoms,
+        lifestyle: answers.lifestyle,
+        environmental: answers.environmental,
+        symptomsList: SYMPTOMS,
+        lifestyleQuestions: LIFESTYLE_QUESTIONS,
+        environmentalList: ENVIRONMENTAL,
         symptomAnswers: SYMPTOMS.map((s, i) => `${s}: ${answers.symptoms[i] || 'N/A'}`).join('\n'),
         lifestyleAnswers: LIFESTYLE_QUESTIONS.map((q, i) => `${q.question}: ${answers.lifestyle[i] || 'N/A'}`).join('\n'),
         environmentalAnswers: ENVIRONMENTAL.map((e, i) => `${e}: ${answers.environmental[i] || 'N/A'}`).join('\n')
@@ -865,7 +871,7 @@ const RiskAssessmentModal = () => {
               <button className="btn btn-primary" onClick={saveAssessment}><Save size={18} /> Save Assessment</button>
               <button className="btn btn-secondary" onClick={downloadResult}><Download size={18} /> Download PDF</button>
               <button className="btn btn-email" onClick={handleSendEmail} disabled={isSendingEmail}>
-                <Mail size={18} /> {isSendingEmail ? 'Sending...' : 'Send to Email'}
+                <Mail size={18} /> {isSendingEmail ? 'Sending...' : 'Send to Doctor (Email)'}
               </button>
               <button className="btn btn-outline" onClick={resetAssessment}><RefreshCcw size={18} /> Retake Assessment</button>
             </div>
