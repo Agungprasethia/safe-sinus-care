@@ -54,9 +54,17 @@ ${data.environmentalAnswers}`;
 
     return emailjs.send(serviceId, templateId, templateParams, publicKey);
   } else {
-    // Fallback: Open mailto client directly addressed to igstmadeagung3@gmail.com
-    const mailtoUrl = `mailto:${TARGET_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-    window.open(mailtoUrl, '_blank');
+    // Fallback when EmailJS keys are not configured in Vercel yet:
+    // On mobile: trigger native mail client without opening blank tab
+    // On desktop: open Gmail Web compose directly (prevents 'about:blank' dead page)
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+      const mailtoUrl = `mailto:${TARGET_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+      window.location.href = mailtoUrl;
+    } else {
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${TARGET_EMAIL}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+      window.open(gmailUrl, '_blank');
+    }
     return Promise.resolve({ fallback: true });
   }
 };
