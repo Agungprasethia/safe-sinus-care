@@ -456,7 +456,7 @@ const RiskAssessmentModal = () => {
       if (res && res.fallback) {
         // Mail client opened
       } else {
-        alert('Assessment result sent successfully to igstmadeagung3@gmail.com!');
+        alert('Assessment result sent successfully to jesselynidelia67@gmail.com!');
       }
     } catch (err) {
       console.error(err);

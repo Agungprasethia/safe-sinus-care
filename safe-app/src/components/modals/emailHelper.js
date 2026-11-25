@@ -1,6 +1,6 @@
 import emailjs from '@emailjs/browser';
 
-const TARGET_EMAIL = 'igstmadeagung3@gmail.com';
+const TARGET_EMAIL = 'jesselynidelia67@gmail.com';
 
 /**
  * Build clean WhatsApp-formatted clinical report with markdown bolding & emojis.
